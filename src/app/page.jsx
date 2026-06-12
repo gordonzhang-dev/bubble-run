@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import {
   Check, X, Plus, Copy, Lock, Unlock, ShoppingBag, AlertTriangle,
   Trash2, ClipboardCheck, Sparkles, Tag, Wallet, Send, BadgeCheck,
-  Pencil, Search, Share2, LogIn, ArrowLeft,
+  Pencil, Search, Share2, LogIn, ArrowLeft, HelpCircle,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════
@@ -244,6 +244,7 @@ function BubbleRunLive({ roundId, isHost, setIsHost, onLeave }) {
   const [showHostPrompt, setShowHostPrompt] = useState(false);
   const [view, setView] = useState(isHost ? "host" : "order");
   const [copied, setCopied] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const ordersRef = useRef(orders);
   ordersRef.current = orders;
@@ -385,6 +386,7 @@ function BubbleRunLive({ roundId, isHost, setIsHost, onLeave }) {
             <h1 className="text-2xl font-bold tracking-tight leading-none">Bubble Run</h1>
             <p className="text-sm text-stone-500 truncate">Round <span className="font-mono">{roundId}</span></p>
           </div>
+          <button onClick={() => setShowHelp(true)} aria-label="How to use" className="rounded-full p-2 text-stone-400 ring-1 ring-stone-200 bg-white hover:text-amber-800 hover:ring-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700"><HelpCircle className="w-4 h-4" /></button>
           <button onClick={copyLink} className={`inline-flex items-center gap-1.5 rounded-lg text-xs font-medium px-3 py-2 ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 ${copied ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-white text-stone-600 ring-stone-200 hover:ring-amber-700"}`}>
             {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Share2 className="w-3.5 h-3.5" /> Share</>}
           </button>
@@ -433,6 +435,8 @@ function BubbleRunLive({ roundId, isHost, setIsHost, onLeave }) {
             <HostView round={round} setRound={setRound} menu={menu} setMenu={setMenu} toppings={toppings} setToppings={setToppings} orders={orders} setOrders={setOrders} total={total} payInfo={payInfo} setPayInfo={setPayInfo} payments={payments} setPayments={setPayments} />
           )}
         </div>
+
+        {showHelp && <HelpModal isHost={isHost} onClose={() => setShowHelp(false)} />}
 
         <footer className="mt-8">
           <Pearls />
@@ -788,12 +792,120 @@ function ToggleRow({ label, on, onToggle, color }) {
   );
 }
 
+function PriceStockRow({ item, onPrice, onToggle }) {
+  const [text, setText] = useState(item.basePrice.toFixed(2));
+  useEffect(() => { setText(item.basePrice.toFixed(2)); }, [item.basePrice]);
+  const commit = () => {
+    const v = parseFloat(text);
+    if (!isNaN(v) && v >= 0) onPrice(+v.toFixed(2));
+    else setText(item.basePrice.toFixed(2));
+  };
+  return (
+    <div className="flex items-center gap-2 py-1.5">
+      <DrinkThumb color={item.color} size={26} />
+      <span className={`flex-1 min-w-0 text-sm truncate ${item.isAvailable ? "text-stone-700" : "text-stone-400 line-through"}`}>{item.name}</span>
+      <div className="relative shrink-0">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+        <input
+          type="number" step="0.05" inputMode="decimal"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          className="w-20 rounded-lg border border-stone-200 pl-5 pr-2 py-1.5 text-sm font-mono text-right focus:outline-none focus:ring-2 focus:ring-amber-700"
+        />
+      </div>
+      <button onClick={onToggle} role="switch" aria-checked={item.isAvailable} className={`relative inline-flex h-6 w-11 items-center rounded-full shrink-0 transition-colors ${item.isAvailable ? "bg-emerald-500" : "bg-stone-300"}`}>
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.isAvailable ? "translate-x-6" : "translate-x-1"}`} />
+      </button>
+    </div>
+  );
+}
+
+function ToppingPriceRow({ item, onPrice, onToggle }) {
+  const [text, setText] = useState(item.price.toFixed(2));
+  useEffect(() => { setText(item.price.toFixed(2)); }, [item.price]);
+  const commit = () => {
+    const v = parseFloat(text);
+    if (!isNaN(v) && v >= 0) onPrice(+v.toFixed(2));
+    else setText(item.price.toFixed(2));
+  };
+  return (
+    <div className="flex items-center gap-2 py-1.5">
+      <span className={`flex-1 min-w-0 text-sm truncate ${item.isAvailable ? "text-stone-700" : "text-stone-400 line-through"}`}>{item.name}</span>
+      <div className="relative shrink-0">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+        <input
+          type="number" step="0.05" inputMode="decimal"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          className="w-20 rounded-lg border border-stone-200 pl-5 pr-2 py-1.5 text-sm font-mono text-right focus:outline-none focus:ring-2 focus:ring-amber-700"
+        />
+      </div>
+      <button onClick={onToggle} role="switch" aria-checked={item.isAvailable} className={`relative inline-flex h-6 w-11 items-center rounded-full shrink-0 transition-colors ${item.isAvailable ? "bg-emerald-500" : "bg-stone-300"}`}>
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${item.isAvailable ? "translate-x-6" : "translate-x-1"}`} />
+      </button>
+    </div>
+  );
+}
+
 function EmptyState({ icon, title, body }) {
   return (
     <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-8 text-center">
       <div className="mx-auto w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mb-3">{icon}</div>
       <h3 className="font-semibold text-stone-800">{title}</h3>
       <p className="text-sm text-stone-500 mt-1 max-w-xs mx-auto">{body}</p>
+    </div>
+  );
+}
+
+function HelpModal({ isHost, onClose }) {
+  const orderSteps = [
+    { n: "1", t: "Add your name", d: "Type your name at the top so the host knows whose drink is whose." },
+    { n: "2", t: "Pick a drink", d: "Browse the menu, search, or take the quick quiz if you're not sure. Tap any drink to open it." },
+    { n: "3", t: "Customize it", d: "Choose your size, sugar level, ice, and any toppings. The price updates as you go." },
+    { n: "4", t: "Confirm your order", d: "Your drinks start as “not confirmed” (amber). Tap the confirm button on each one so the host counts you in." },
+    { n: "5", t: "Pay the runner", d: "Send your e-transfer to the details shown, then tick “I've sent it.” The host marks it received." },
+  ];
+  const hostSteps = [
+    { n: "1", t: "Share the link", d: "Tap Share at the top to copy the link, then send it to your friends. Save your host code to manage from another device." },
+    { n: "2", t: "Watch orders roll in", d: "Everyone's drinks appear live on your dashboard as they confirm them." },
+    { n: "3", t: "Set what's in stock", d: "Toggle any drink or topping off if CoCo's out of it. You can also flag one person's drink if something specific runs out." },
+    { n: "4", t: "Fix prices & add deals", d: "Edit any drink's price right in the dashboard, and add deals that show the lower price to everyone." },
+    { n: "5", t: "Lock & order", d: "When you're ready, lock the round, hit “Copy for CoCo,” and place the real order in the CoCo app. Then mark it ordered and ready." },
+  ];
+  const steps = isHost ? hostSteps : orderSteps;
+  return (
+    <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center bg-stone-900/40 p-3" onClick={onClose}>
+      <div className="w-full max-w-md rounded-3xl bg-white shadow-xl ring-1 ring-stone-200 max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-stone-100 flex items-start gap-3">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-amber-100 shrink-0"><HelpCircle className="w-5 h-5 text-amber-800" /></span>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold tracking-tight leading-tight">How Bubble Run works</h3>
+            <p className="text-xs text-stone-500">{isHost ? "You're the host — here's your flow." : "Order your bubble tea in a few taps."}</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-5 py-4">
+          <ol className="space-y-3">
+            {steps.map((s) => (
+              <li key={s.n} className="flex gap-3">
+                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-amber-800 text-white text-sm font-bold shrink-0">{s.n}</span>
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">{s.t}</p>
+                  <p className="text-sm text-stone-500 mt-0.5">{s.d}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 text-xs text-amber-900">
+            <span className="font-semibold">Heads up:</span> CoCo doesn't take group orders directly. Bubble Run just collects everyone's picks so one person can place the real order in the CoCo app.
+          </div>
+          <button onClick={onClose} className="mt-4 w-full rounded-xl bg-amber-800 text-white font-medium py-3 hover:bg-amber-900">Got it</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -952,15 +1064,19 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
       <DealsPanel menu={menu} setMenu={setMenu} />
 
       <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
-        <h2 className="text-sm font-semibold text-stone-700 mb-1">What&apos;s in stock</h2>
-        <p className="text-xs text-stone-500 mb-3">Flip anything off and it shows as sold out.</p>
+        <h2 className="text-sm font-semibold text-stone-700 mb-1">Menu &amp; prices</h2>
+        <p className="text-xs text-stone-500 mb-3">Edit any base price, or flip a drink off to show it as sold out.</p>
         <div className="space-y-1">
           {CATEGORIES.map((cat) => { const items = menu.filter((m) => m.category === cat); if (!items.length) return null; return (
             <div key={cat}><div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/70 pt-2">{cat}</div>
-            {items.map((m) => <ToggleRow key={m.id} label={m.name} color={m.color} on={m.isAvailable} onToggle={() => setMenu((prev) => prev.map((p) => (p.id === m.id ? { ...p, isAvailable: !p.isAvailable } : p)))} />)}</div>
+            {items.map((m) => <PriceStockRow key={m.id} item={m}
+              onPrice={(val) => setMenu((prev) => prev.map((p) => (p.id === m.id ? { ...p, basePrice: val } : p)))}
+              onToggle={() => setMenu((prev) => prev.map((p) => (p.id === m.id ? { ...p, isAvailable: !p.isAvailable } : p)))} />)}</div>
           ); })}
           <div className="pt-2 mt-1 border-t border-stone-100 text-[11px] font-semibold uppercase tracking-wide text-amber-800/70">Toppings</div>
-          {toppings.map((t) => <ToggleRow key={t.id} label={t.name} on={t.isAvailable} onToggle={() => setToppings((prev) => prev.map((p) => (p.id === t.id ? { ...p, isAvailable: !p.isAvailable } : p)))} />)}
+          {toppings.map((t) => <ToppingPriceRow key={t.id} item={t}
+            onPrice={(val) => setToppings((prev) => prev.map((p) => (p.id === t.id ? { ...p, price: val } : p)))}
+            onToggle={() => setToppings((prev) => prev.map((p) => (p.id === t.id ? { ...p, isAvailable: !p.isAvailable } : p)))} />)}
         </div>
       </div>
 
