@@ -576,6 +576,8 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
         <PaymentCard payInfo={payInfo} amount={myOrders.reduce((s, o) => s + o.price, 0)} pay={payments[name.trim().toLowerCase()] || { sent: false, received: false }} onToggleSent={() => setPayments((prev) => { const key = name.trim().toLowerCase(); const cur = prev[key] || { sent: false, received: false }; if (cur.received) return prev; return { ...prev, [key]: { ...cur, sent: !cur.sent } }; })} />
       )}
 
+      <GroupOrders orders={orders} menu={menu} toppings={toppings} myName={name} />
+
       <DrinkQuiz menu={menu} nameReady={nameReady} onPick={(item) => setBuilding({ item, init: null })} />
 
       <button onClick={surprise} disabled={!nameReady} className={`w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 ${nameReady ? "border-amber-300 text-amber-800 hover:bg-amber-100/60" : "border-stone-200 text-stone-300"}`}>
@@ -628,6 +630,68 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
             setBuilding(null);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+function GroupOrders({ orders, menu, toppings, myName }) {
+  const [open, setOpen] = useState(false);
+  const people = useMemo(() => {
+    const map = new Map();
+    orders.forEach((o) => {
+      const key = o.person.trim().toLowerCase();
+      if (!key) return;
+      if (!map.has(key)) map.set(key, { key, name: o.person.trim(), drinks: [] });
+      map.get(key).drinks.push(o);
+    });
+    return [...map.values()];
+  }, [orders]);
+
+  const myKey = myName.trim().toLowerCase();
+
+  if (orders.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4 text-center">
+        <p className="text-sm text-stone-400">No orders yet — be the first to add a drink! 🧋</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-white ring-1 ring-stone-200 overflow-hidden">
+      <button onClick={() => setOpen((o) => !o)} className="w-full flex items-center gap-2.5 px-4 py-3.5 text-left">
+        <span className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 shrink-0 text-base">🧋</span>
+        <span className="flex-1">
+          <span className="block text-sm font-semibold text-stone-800">What everyone's getting</span>
+          <span className="block text-xs text-stone-500">{orders.length} {orders.length === 1 ? "drink" : "drinks"} · {people.length} {people.length === 1 ? "person" : "people"}</span>
+        </span>
+        <span className="text-stone-400 text-sm">{open ? "−" : "+"}</span>
+      </button>
+      {open && (
+        <div className="border-t border-stone-100 px-4 py-3 space-y-3">
+          {people.map((p) => (
+            <div key={p.key}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800/70 mb-1.5">{p.name}{p.key === myKey && <span className="text-stone-400 normal-case font-normal"> (you)</span>}</p>
+              <ul className="space-y-1.5">
+                {p.drinks.map((o) => {
+                  const drink = menu.find((m) => m.id === o.drinkId);
+                  const tNames = o.toppingIds.map((id) => toppings.find((t) => t.id === id)?.name).filter(Boolean);
+                  return (
+                    <li key={o.id} className="flex items-center gap-2.5">
+                      <DrinkThumb color={drink?.color || "#caa06a"} size={28} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-stone-700 leading-tight">{drink?.name} <span className="text-stone-400">·</span> {SIZES.find((s) => s.id === o.size)?.label}</p>
+                        <p className="text-[11px] text-stone-400">Sugar {o.sugar} · {o.ice}{tNames.length > 0 && <> · {tNames.join(", ")}</>}</p>
+                      </div>
+                      {o.status === "confirmed" && <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
