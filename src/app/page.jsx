@@ -502,7 +502,8 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
   const [filterCat, setFilterCat] = useState("All");
   const [dealsOnly, setDealsOnly] = useState(false);
   const [hideSoldOut, setHideSoldOut] = useState(false);
-  const [maxPrice, setMaxPrice] = useState(7);
+  const [maxPrice, setMaxPrice] = useState(8);
+  const [priceFilter, setPriceFilter] = useState(false);
 
   const filteredMenu = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -511,10 +512,10 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
       if (filterCat !== "All" && m.category !== filterCat) return false;
       if (dealsOnly && !hasDeal(m)) return false;
       if (hideSoldOut && !m.isAvailable) return false;
-      if (effectiveBase(m) > maxPrice) return false;
+      if (priceFilter && effectiveBase(m) > maxPrice) return false;
       return true;
     });
-  }, [menu, search, filterCat, dealsOnly, hideSoldOut, maxPrice]);
+  }, [menu, search, filterCat, dealsOnly, hideSoldOut, maxPrice, priceFilter]);
 
   const myOrders = orders.filter((o) => name.trim() && o.person.toLowerCase() === name.trim().toLowerCase());
   const unconfirmedCount = myOrders.filter((o) => o.status === "submitted").length;
@@ -596,8 +597,9 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3 px-1">
           <label className="inline-flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer"><input type="checkbox" checked={dealsOnly} onChange={(e) => setDealsOnly(e.target.checked)} className="rounded accent-rose-600" /> On sale only</label>
           <label className="inline-flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer"><input type="checkbox" checked={hideSoldOut} onChange={(e) => setHideSoldOut(e.target.checked)} className="rounded accent-emerald-600" /> Hide sold out</label>
-          <label className="inline-flex items-center gap-1.5 text-xs text-stone-600">Under <span className="font-mono font-semibold">{money(maxPrice)}</span><input type="range" min="5" max="7" step="0.25" value={maxPrice} onChange={(e) => setMaxPrice(parseFloat(e.target.value))} className="w-24 accent-amber-700" /></label>
-          {(search || filterCat !== "All" || dealsOnly || hideSoldOut || maxPrice < 7) && <button onClick={() => { setSearch(""); setFilterCat("All"); setDealsOnly(false); setHideSoldOut(false); setMaxPrice(7); }} className="text-xs text-amber-800 underline">Reset</button>}
+          <label className="inline-flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer"><input type="checkbox" checked={priceFilter} onChange={(e) => setPriceFilter(e.target.checked)} className="rounded accent-amber-700" /> Budget</label>
+          {priceFilter && <label className="inline-flex items-center gap-1.5 text-xs text-stone-600">Under <span className="font-mono font-semibold">{money(maxPrice)}</span><input type="range" min="5" max="8" step="0.25" value={maxPrice} onChange={(e) => setMaxPrice(parseFloat(e.target.value))} className="w-24 accent-amber-700" /></label>}
+          {(search || filterCat !== "All" || dealsOnly || hideSoldOut || priceFilter) && <button onClick={() => { setSearch(""); setFilterCat("All"); setDealsOnly(false); setHideSoldOut(false); setPriceFilter(false); setMaxPrice(8); }} className="text-xs text-amber-800 underline">Reset</button>}
         </div>
         {(filterCat === "All" ? CATEGORIES : [filterCat]).map((cat) => {
           const items = filteredMenu.filter((m) => m.category === cat);
