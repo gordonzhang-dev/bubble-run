@@ -105,6 +105,8 @@ const CATEGORIES = ["Milk Tea","Fruit Tea","Fresh Tea","Slush / Smoothie","Probi
    HELPERS
    ═══════════════════════════════════════════ */
 const money = (n) => `$${n.toFixed(2)}`;
+const SECRET_DRINK = { id: "__timsicecap__", name: "Tims Ice Cap ✨", basePrice: 0, category: "Secret", color: "#b97b4a", isAvailable: true };
+const findDrink = (menu, id) => (id === "__timsicecap__" ? SECRET_DRINK : menu.find((m) => m.id === id));
 const TAX_RATE = 0.13;
 const taxOf = (n) => n * TAX_RATE;
 const withTax = (n) => n * (1 + TAX_RATE);
@@ -584,6 +586,26 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
         <Sparkles className="w-4 h-4" /> Can't decide? Surprise me
       </button>
 
+      {name.trim().toLowerCase() === "marcus" && (
+        <button
+          onClick={() => setOrders((prev) => [...prev, { id: crypto.randomUUID(), person: name.trim(), drinkId: "__timsicecap__", size: "M", sugar: "100%", ice: "Regular ice", toppingIds: [], notes: "On the house 🎉", price: 0, status: "submitted", hostNote: "", unavailableItems: [] }])}
+          className="secret-marcus-card w-full text-left rounded-2xl p-4 relative overflow-hidden"
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <DrinkThumb color="#b97b4a" size={52} />
+              <span className="absolute -top-1 -right-1 text-sm">✨</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="secret-marcus-text text-base font-extrabold leading-tight">Tims Ice Cap</p>
+              <p className="text-xs text-stone-500 mt-0.5">Secret menu · just for you, Marcus 🎉</p>
+              <p className="text-xs font-bold text-emerald-600 mt-0.5">FREE</p>
+            </div>
+            <span className="secret-marcus-text text-2xl font-black shrink-0">+</span>
+          </div>
+        </button>
+      )}
+
       <div>
         <h2 className="text-sm font-semibold text-stone-700 mb-2 px-1">Menu</h2>
         <div className="relative mb-2">
@@ -675,7 +697,7 @@ function GroupOrders({ orders, menu, toppings, myName }) {
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-800/70 mb-1.5">{p.name}{p.key === myKey && <span className="text-stone-400 normal-case font-normal"> (you)</span>}</p>
               <ul className="space-y-1.5">
                 {p.drinks.map((o) => {
-                  const drink = menu.find((m) => m.id === o.drinkId);
+                  const drink = findDrink(menu, o.drinkId);
                   const tNames = o.toppingIds.map((id) => toppings.find((t) => t.id === id)?.name).filter(Boolean);
                   return (
                     <li key={o.id} className="flex items-center gap-2.5">
@@ -757,7 +779,7 @@ function Pearls() {
 }
 
 function MyOrderRow({ order, menu, toppings, onConfirm, onRemove, onEdit, onFix }) {
-  const drink = menu.find((m) => m.id === order.drinkId);
+  const drink = findDrink(menu, order.drinkId);
   const tNames = order.toppingIds.map((id) => toppings.find((t) => t.id === id)?.name).filter(Boolean);
   return (
     <li className={`rounded-xl p-3 ring-1 ${order.status === "submitted" ? "bg-amber-50 ring-amber-300" : order.status === "needs_attention" ? "bg-rose-50 ring-rose-200" : "bg-stone-50 ring-stone-200"}`}>
@@ -1217,7 +1239,7 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
         </div>
         {orders.length === 0 ? <div className="px-4 py-8 text-center text-sm text-stone-400">No drinks yet. Share the link!</div> : (
           <ul className="divide-y divide-stone-100">
-            {orders.map((o) => { const drink = menu.find((m) => m.id === o.drinkId); const tNames = o.toppingIds.map((id) => toppings.find((t) => t.id === id)?.name).filter(Boolean); return (
+            {orders.map((o) => { const drink = findDrink(menu, o.drinkId); const tNames = o.toppingIds.map((id) => toppings.find((t) => t.id === id)?.name).filter(Boolean); return (
               <li key={o.id} className="px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex gap-2.5 min-w-0">
@@ -1268,7 +1290,7 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
 
       {/* Flag modal */}
       {flagging && flagOrder && (() => {
-        const drink = menu.find((m) => m.id === flagOrder.drinkId);
+        const drink = findDrink(menu, flagOrder.drinkId);
         const ot = flagOrder.toppingIds.map((id) => toppings.find((t) => t.id === id)).filter(Boolean);
         const rows = [{ key: `drink:${drink?.id}`, name: drink?.name, kind: "Base" }, ...ot.map((t) => ({ key: `top:${t.id}`, name: t.name, kind: "Topping" }))];
         const toggle = (key) => setFlagItems((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -1394,7 +1416,7 @@ function SummaryModal({ text, onClose }) {
 function buildSummary(orders, menu, toppings, round, total) {
   const lines = [`CoCo group order — ${round.pickup}`, `Cutoff: ${round.deadline}`, `${orders.length} drinks`, ""];
   orders.forEach((o, i) => {
-    const drink = menu.find((m) => m.id === o.drinkId);
+    const drink = findDrink(menu, o.drinkId);
     const tNames = o.toppingIds.map((id) => toppings.find((t) => t.id === id)?.name).filter(Boolean);
     lines.push(`${i + 1}. ${o.person} — ${drink?.name} (${SIZES.find((s) => s.id === o.size)?.label})`);
     lines.push(`   Sugar ${o.sugar}, ${o.ice}`);
