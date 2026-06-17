@@ -24,33 +24,45 @@ MACCHIATO: Green Tea Macchiato $6.30 | Matcha Macchiato $7.10 | Berry Black Tea 
 
 MILK: Brown Sugar Pearl Latte $7.30 | Matcha Latte $6.60 | Matcha Mango Latte $6.90 | Berry Latte $6.90
 
-TOPPINGS (+$0.75 each): Pearls, Pudding, Grass Jelly, Coconut Jelly, Red Bean, Aloe, Sago. Cream Cloud +$1.00.
+TOPPINGS: Pearls $0.60 | Pudding $0.60 | Grass Jelly $0.60 | Sago $0.60 | Coconut Jelly $0.60 | Crystal Pearl $0.60 | Tea Jelly $0.60 | Macchiato $1.00 | Brown Sugar Pearl $1.20 | Lychee Popping Pearl $1.00 | Strawberry Popping Pearl $1.00 | Creme Brulee Macchiato $1.20 | Fresh Taro SOLD OUT | Red Bean SOLD OUT
 
 Sugar levels: 0%, 30%, 50%, 70%, 100%. Ice: No ice, Less ice, Regular ice.
+
+HOW BUBBLE RUN WORKS:
+1. Someone starts a "round" and shares the link with friends
+2. Friends open the link, enter their name, and pick their drinks
+3. Each person confirms their order and sends payment via e-transfer
+4. The host locks the round, copies the order summary, and places one real order at CoCo
+5. 13% Ontario HST is added to all orders
 
 RULES:
 - Keep answers short and friendly (2-4 sentences max)
 - Use casual tone with occasional emoji
-- If someone describes a vibe, recommend 1-2 specific drinks
-- 13% Ontario HST is added to all orders
+- If someone describes a vibe, recommend 1-2 specific drinks with prices
 - You don't place orders — you help people decide what to get
 - If asked about something unrelated to bubble tea or the app, gently redirect`;
 
 export async function POST(req) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    return Response.json({ reply: "The AI assistant isn't set up yet — the host needs to add a Gemini API key in Vercel settings." }, { status: 200 });
+    return Response.json({
+      reply: "CoCo Bot isn't set up yet — the host needs to add a free Gemini API key in Vercel settings. Get one at aistudio.google.com/apikey"
+    });
   }
 
-  const { message, history } = await req.json();
+  let message, history;
+  try {
+    const body = await req.json();
+    message = body.message;
+    history = body.history;
+  } catch {
+    return Response.json({ reply: "Something went wrong reading your message." });
+  }
 
-  // Build conversation for Gemini
   const contents = [];
-  // System instruction via first user/model pair
   contents.push({ role: "user", parts: [{ text: SYSTEM + "\n\nSay hi briefly." }] });
   contents.push({ role: "model", parts: [{ text: "Hey! 🧋 I'm CoCo Bot — I can help you pick a drink, explain the menu, or walk you through how Bubble Run works. What's on your mind?" }] });
 
-  // Add conversation history
   if (history && history.length) {
     for (const msg of history) {
       contents.push({ role: msg.role === "user" ? "user" : "model", parts: [{ text: msg.text }] });
@@ -60,17 +72,34 @@ export async function POST(req) {
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents }),
       }
     );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Gemini API error:", res.status, errText);
+      if (res.status === 400 || res.status === 403) {
+        return Response.json({ reply: "API key issue — double-check that GEMINI_API_KEY is correct in Vercel settings. You can get a free key at aistudio.google.com/apikey" });
+      }
+      return Response.json({ reply: `Gemini API returned an error (${res.status}). Try again in a moment!` });
+    }
+
     const data = await res.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Hmm, I couldn't think of anything. Try asking again!";
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!reply) {
+      console.error("Unexpected Gemini response:", JSON.stringify(data).slice(0, 500));
+      return Response.json({ reply: "Got an empty response from CoCo Bot — try rephrasing your question!" });
+    }
+
     return Response.json({ reply });
   } catch (e) {
-    return Response.json({ reply: "Something went wrong — try again in a sec!" }, { status: 200 });
+    console.error("Fetch error:", e);
+    return Response.json({ reply: "Couldn't reach the AI service — check your internet and try again!" });
   }
 }
