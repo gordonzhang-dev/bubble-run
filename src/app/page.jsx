@@ -302,8 +302,10 @@ function BubbleRunLive({ roundId, isHost, setIsHost, onLeave }) {
   // Realtime subscriptions
   useEffect(() => {
     const channel = supabase.channel(`round-${roundId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "rounds", filter: `id=eq.${roundId}` }, (p) => {
-        if (p.new) setRoundData(p.new);
+      .on("postgres_changes", { event: "*", schema: "public", table: "rounds", filter: `id=eq.${roundId}` }, () => {
+        supabase.from("rounds").select("*").eq("id", roundId).single().then(({ data }) => {
+          if (data) setRoundData(data);
+        });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `round_id=eq.${roundId}` }, () => {
         supabase.from("orders").select("*").eq("round_id", roundId).order("created_at").then(({ data }) => {
