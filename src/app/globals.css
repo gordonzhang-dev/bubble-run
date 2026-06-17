@@ -1,3 +1,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Marcus secret menu item */
+@keyframes rainbow-text {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes rainbow-border {
+  0% { border-color: #ff0000; box-shadow: 0 0 8px rgba(255,0,0,0.4); }
+  16% { border-color: #ff9900; box-shadow: 0 0 8px rgba(255,153,0,0.4); }
+  33% { border-color: #ffee00; box-shadow: 0 0 8px rgba(255,238,0,0.4); }
+  50% { border-color: #33dd33; box-shadow: 0 0 8px rgba(51,221,51,0.4); }
+  66% { border-color: #3399ff; box-shadow: 0 0 8px rgba(51,153,255,0.4); }
+  83% { border-color: #9933ff; box-shadow: 0 0 8px rgba(153,51,255,0.4); }
+  100% { border-color: #ff0000; box-shadow: 0 0 8px rgba(255,0,0,0.4); }
+}
+.secret-marcus-card {
+  background: #fffdf8;
+  border: 3px solid #ff0000;
+  animation: rainbow-border 3s linear infinite;
+}
+.secret-marcus-text {
+  background: linear-gradient(90deg, #ff0000, #ff9900, #ffee00, #33dd33, #3399ff, #9933ff, #ff0000);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-text 3s linear infinite;
+}
