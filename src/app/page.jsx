@@ -83,14 +83,20 @@ const DEFAULT_MENU = [
 ];
 
 const DEFAULT_TOPPINGS = [
-  { id:"pearls",name:"Pearls",price:0.75,isAvailable:true },
-  { id:"pudding",name:"Pudding",price:0.75,isAvailable:true },
-  { id:"grass",name:"Grass Jelly",price:0.75,isAvailable:true },
-  { id:"coconut",name:"Coconut Jelly",price:0.75,isAvailable:true },
-  { id:"redbean",name:"Red Bean",price:0.75,isAvailable:false },
-  { id:"aloe",name:"Aloe",price:0.75,isAvailable:true },
-  { id:"sago",name:"Sago",price:0.75,isAvailable:true },
-  { id:"cream",name:"Cream Cloud",price:1.0,isAvailable:true },
+  { id:"pearls",name:"Pearls",price:0.60,isAvailable:true },
+  { id:"pudding",name:"Pudding",price:0.60,isAvailable:true },
+  { id:"grass",name:"Grass Jelly",price:0.60,isAvailable:true },
+  { id:"sago",name:"Sago",price:0.60,isAvailable:true },
+  { id:"coconut",name:"Coconut Jelly",price:0.60,isAvailable:true },
+  { id:"crystal",name:"Crystal Pearl",price:0.60,isAvailable:true },
+  { id:"teajelly",name:"Tea Jelly",price:0.60,isAvailable:true },
+  { id:"macchiato",name:"Macchiato",price:1.00,isAvailable:true },
+  { id:"bspearl",name:"Brown Sugar Pearl",price:1.20,isAvailable:true },
+  { id:"lycheepop",name:"Lychee Popping Pearl",price:1.00,isAvailable:true },
+  { id:"strawberrypop",name:"Strawberry Popping Pearl",price:1.00,isAvailable:true },
+  { id:"cremebrulee",name:"Creme Brulee Macchiato",price:1.20,isAvailable:true },
+  { id:"freshtarotop",name:"Fresh Taro",price:0.60,isAvailable:false },
+  { id:"redbean",name:"Red Bean",price:0.60,isAvailable:false },
 ];
 
 const CATEGORIES = ["Milk Tea","Fruit Tea","Fresh Tea","Slush / Smoothie","Probiotic","Macchiato","Milk"];
@@ -666,6 +672,20 @@ function DrinkThumb({ color, size = 44 }) {
   );
 }
 
+function SaveOnBlurInput({ value, onSave, ...props }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+  return (
+    <input
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => { if (local !== value) onSave(local); }}
+      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+      {...props}
+    />
+  );
+}
+
 function Pearls() {
   return <div className="flex items-center justify-center gap-1.5 py-1" aria-hidden="true">{Array.from({ length: 7 }).map((_, i) => <span key={i} className="w-1.5 h-1.5 rounded-full bg-stone-300" />)}</div>;
 }
@@ -1108,8 +1128,8 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
       <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
         <h2 className="text-sm font-semibold text-stone-700 mb-3">Round</h2>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="block text-xs text-stone-500 mb-1">Pickup spot</label><input value={round.pickup} onChange={(e) => setRound((r) => ({ ...r, pickup: e.target.value }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
-          <div><label className="block text-xs text-stone-500 mb-1">Cutoff</label><input value={round.deadline} onChange={(e) => setRound((r) => ({ ...r, deadline: e.target.value }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
+          <div><label className="block text-xs text-stone-500 mb-1">Pickup spot</label><SaveOnBlurInput value={round.pickup} onSave={(v) => setRound((r) => ({ ...r, pickup: v }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
+          <div><label className="block text-xs text-stone-500 mb-1">Cutoff</label><SaveOnBlurInput value={round.deadline} onSave={(v) => setRound((r) => ({ ...r, deadline: v }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
         </div>
         <div className="flex items-center gap-1.5 mb-3">
           {ROUND_FLOW.map((s, i) => (<React.Fragment key={s}><span className={`flex-1 text-center text-[11px] font-medium rounded-full py-1 ${i <= idx ? "bg-amber-800 text-white" : "bg-stone-100 text-stone-400"}`}>{ROUND_LABEL[s]}</span>{i < ROUND_FLOW.length - 1 && <span className="text-stone-300">›</span>}</React.Fragment>))}
@@ -1229,10 +1249,10 @@ function PaymentHost({ payInfo, setPayInfo, orders, payments, setPayments }) {
       <h2 className="text-sm font-semibold text-stone-700 inline-flex items-center gap-1.5 mb-1"><Wallet className="w-4 h-4 text-amber-700" /> Getting paid</h2>
       <p className="text-xs text-stone-500 mb-3">Your e-transfer details show up for everyone.</p>
       <div className="space-y-2.5">
-        <div><label className="block text-xs text-stone-500 mb-1">Interac e-Transfer email or phone</label><input value={payInfo.handle} onChange={(e) => setPayInfo((p) => ({ ...p, handle: e.target.value }))} placeholder="you@email.com" className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
+        <div><label className="block text-xs text-stone-500 mb-1">Interac e-Transfer email or phone</label><SaveOnBlurInput value={payInfo.handle} onSave={(v) => setPayInfo((p) => ({ ...p, handle: v }))} placeholder="you@email.com" className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
         <div className="grid grid-cols-2 gap-2.5">
-          <div><label className="block text-xs text-stone-500 mb-1">Recipient name</label><input value={payInfo.name} onChange={(e) => setPayInfo((p) => ({ ...p, name: e.target.value }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
-          <div><label className="block text-xs text-stone-500 mb-1">Note (optional)</label><input value={payInfo.note} onChange={(e) => setPayInfo((p) => ({ ...p, note: e.target.value }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
+          <div><label className="block text-xs text-stone-500 mb-1">Recipient name</label><SaveOnBlurInput value={payInfo.name} onSave={(v) => setPayInfo((p) => ({ ...p, name: v }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
+          <div><label className="block text-xs text-stone-500 mb-1">Note (optional)</label><SaveOnBlurInput value={payInfo.note} onSave={(v) => setPayInfo((p) => ({ ...p, note: v }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
         </div>
       </div>
       <div className="mt-4">
@@ -1274,7 +1294,7 @@ function DealsPanel({ menu, setMenu }) {
           <div key={m.id} className={`rounded-xl ring-1 p-3 ${m.deal.active ? "bg-rose-50 ring-rose-200" : "bg-stone-50 ring-stone-200"}`}>
             <div className="flex items-center gap-2.5"><DrinkThumb color={m.color} size={32} /><span className="text-sm font-medium text-stone-800 flex-1 min-w-0">{m.name}</span><button onClick={() => remove(m.id)} className="text-stone-400 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button></div>
             <div className="mt-2 flex items-end gap-2 flex-wrap">
-              <label className="text-xs text-stone-500">Label<input value={m.deal.label} onChange={(e) => update(m.id, { label: e.target.value })} className="mt-0.5 block w-28 rounded-lg border border-stone-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-600" /></label>
+              <label className="text-xs text-stone-500">Label<SaveOnBlurInput value={m.deal.label} onSave={(v) => update(m.id, { label: v })} className="mt-0.5 block w-28 rounded-lg border border-stone-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-600" /></label>
               <label className="text-xs text-stone-500">Deal price<input type="number" step="0.25" value={m.deal.price} onChange={(e) => update(m.id, { price: parseFloat(e.target.value) || 0 })} className="mt-0.5 block w-24 rounded-lg border border-stone-200 px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-rose-600" /></label>
               <span className="text-xs text-stone-400 mb-1.5">was <span className="font-mono line-through">{money(m.basePrice)}</span></span>
               <div className="ml-auto flex items-center gap-2 mb-0.5">
