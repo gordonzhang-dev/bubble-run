@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import {
   Check, X, Plus, Copy, Lock, Unlock, ShoppingBag, AlertTriangle,
   Trash2, ClipboardCheck, Sparkles, Tag, Wallet, Send, BadgeCheck,
-  Pencil, Search, Share2, LogIn, ArrowLeft, HelpCircle, MessageCircle,
+  Pencil, Search, Share2, LogIn, ArrowLeft, HelpCircle, MessageCircle, RefreshCw,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════════
@@ -232,8 +232,17 @@ function Landing({ onGo }) {
   const create = async () => {
     setCreating(true);
     setError("");
+    // Use the auto-synced master menu if available, else fall back to defaults
+    let startMenu = DEFAULT_MENU, startToppings = DEFAULT_TOPPINGS;
+    try {
+      const { data: master } = await supabase.from("menu_master").select("menu, toppings").eq("id", "master").maybeSingle();
+      if (master && Array.isArray(master.menu) && master.menu.length) {
+        startMenu = master.menu;
+        if (Array.isArray(master.toppings) && master.toppings.length) startToppings = master.toppings;
+      }
+    } catch {}
     const { data, error: err } = await supabase.from("rounds").insert({
-      menu: DEFAULT_MENU, toppings: DEFAULT_TOPPINGS,
+      menu: startMenu, toppings: startToppings,
     }).select("id, host_code").single();
     if (err || !data) { setError("Couldn't create round — try again."); setCreating(false); return; }
     localStorage.setItem(`br_host_${data.id}`, data.host_code);
@@ -945,6 +954,72 @@ function ToggleRow({ label, on, onToggle, color }) {
   );
 }
 
+function SyncMenuButton({ menu, setMenu, toppings, setToppings }) {
+  const [syncing, setSyncing] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const sync = async () => {
+    setSyncing(true);
+    setMsg("");
+    try {
+      // 1) Trigger server-side sync (fetches Snappy, updates menu_master)
+      const res = await fetch("/api/sync-menu", { method: "POST" });
+      const result = await res.json();
+      if (!result.ok) {
+        setMsg(result.error?.includes("403") || result.error?.includes("empty")
+          ? "CoCo's site blocked the sync. Try again later."
+          : `Sync failed: ${result.error || "unknown"}`);
+        setSyncing(false);
+        return;
+      }
+      // 2) Pull the fresh master and merge into THIS round (price + availability, keep deals)
+      const { data: master } = await supabase.from("menu_master").select("menu, toppings").eq("id", "master").maybeSingle();
+      if (master?.menu?.length) {
+        setMenu((prev) => {
+          const freshById = new Map(master.menu.map((d) => [d.id, d]));
+          const prevIds = new Set(prev.map((d) => d.id));
+          const updated = prev.map((d) => {
+            const f = freshById.get(d.id);
+            return f ? { ...d, basePrice: f.basePrice, isAvailable: f.isAvailable, category: f.category } : d;
+          });
+          // add drinks new to this round
+          for (const f of master.menu) if (!prevIds.has(f.id)) updated.push(f);
+          return updated;
+        });
+        if (master.toppings?.length) {
+          setToppings((prev) => {
+            const freshById = new Map(master.toppings.map((t) => [t.id, t]));
+            const prevIds = new Set(prev.map((t) => t.id));
+            const updated = prev.map((t) => {
+              const f = freshById.get(t.id);
+              return f ? { ...t, price: f.price, isAvailable: f.isAvailable } : t;
+            });
+            for (const f of master.toppings) if (!prevIds.has(f.id)) updated.push(f);
+            return updated;
+          });
+        }
+        const added = result.added?.length ? ` · ${result.added.length} new` : "";
+        setMsg(`Synced ${result.drinks} drinks${added} ✓`);
+      } else {
+        setMsg("Sync ran but no menu came back.");
+      }
+    } catch (e) {
+      setMsg("Sync failed — check your connection.");
+    }
+    setSyncing(false);
+    setTimeout(() => setMsg(""), 5000);
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button onClick={sync} disabled={syncing} className="inline-flex items-center gap-1.5 rounded-lg bg-stone-800 text-white text-xs font-medium px-3 py-1.5 hover:bg-stone-900 disabled:opacity-60">
+        <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} /> {syncing ? "Syncing…" : "Sync from CoCo"}
+      </button>
+      {msg && <span className="text-[11px] text-stone-500 text-right max-w-[180px]">{msg}</span>}
+    </div>
+  );
+}
+
 function PriceStockRow({ item, onPrice, onToggle }) {
   const [text, setText] = useState(item.basePrice.toFixed(2));
   useEffect(() => { setText(item.basePrice.toFixed(2)); }, [item.basePrice]);
@@ -1284,7 +1359,10 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
       <DealsPanel menu={menu} setMenu={setMenu} />
 
       <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
-        <h2 className="text-sm font-semibold text-stone-700 mb-1">Menu &amp; prices</h2>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h2 className="text-sm font-semibold text-stone-700">Menu &amp; prices</h2>
+          <SyncMenuButton menu={menu} setMenu={setMenu} toppings={toppings} setToppings={setToppings} />
+        </div>
         <p className="text-xs text-stone-500 mb-3">Edit any base price, or flip a drink off to show it as sold out.</p>
         <div className="space-y-1">
           {CATEGORIES.map((cat) => { const items = menu.filter((m) => m.category === cat); if (!items.length) return null; return (
