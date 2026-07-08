@@ -55,19 +55,20 @@ function mergeToppings(stored, fresh) {
 }
 
 async function runSync() {
-  // Fetch Snappy menu with browser-like headers
+  // Fetch Snappy menu. Keep headers minimal — extra Origin/Referer can trigger 400s.
   const res = await fetch(SNAPPY_URL, {
     headers: {
-      "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-      "Referer": `https://gosnappy.io/owa/r/coco-mcmaster/3017/${MENU_CODE}`,
-      "Origin": "https://gosnappy.io",
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     },
     cache: "no-store",
   });
 
   if (!res.ok) {
-    throw new Error(`Snappy returned ${res.status}`);
+    let body = "";
+    try { body = (await res.text()).slice(0, 200); } catch {}
+    throw new Error(`Snappy returned ${res.status}${body ? " — " + body : ""}`);
   }
 
   const data = await res.json();
