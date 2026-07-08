@@ -17,42 +17,34 @@ function admin() {
 // Add brand-new drinks. Keep host-customized colors/names on existing items.
 function mergeMenu(stored, fresh) {
   const byId = new Map(stored.map((d) => [d.id, d]));
-  const freshIds = new Set(fresh.map((d) => d.id));
+  const result = [];
 
   for (const f of fresh) {
     const existing = byId.get(f.id);
     if (existing) {
-      existing.basePrice = f.basePrice;
-      existing.isAvailable = f.isAvailable;
-      existing.category = f.category; // keep category in sync
-      // keep existing.color and existing.name and any deal
+      // Update price/availability/category from CoCo, but keep host's color and any deal
+      result.push({
+        ...f,
+        color: existing.color || f.color,
+        ...(existing.deal ? { deal: existing.deal } : {}),
+      });
     } else {
-      byId.set(f.id, f);
+      result.push(f);
     }
   }
-  // Mark drinks that vanished from Snappy as unavailable (but keep them)
-  for (const d of byId.values()) {
-    if (!freshIds.has(d.id)) d.isAvailable = false;
-  }
-  return [...byId.values()];
+  // Anything not in CoCo's current menu is dropped entirely (menu mirrors CoCo exactly)
+  return result;
 }
 
 function mergeToppings(stored, fresh) {
   const byId = new Map(stored.map((t) => [t.id, t]));
-  const freshIds = new Set(fresh.map((t) => t.id));
+  const result = [];
   for (const f of fresh) {
     const existing = byId.get(f.id);
-    if (existing) {
-      existing.price = f.price;
-      existing.isAvailable = f.isAvailable;
-    } else {
-      byId.set(f.id, f);
-    }
+    result.push(existing ? { ...f } : f);
   }
-  for (const t of byId.values()) {
-    if (!freshIds.has(t.id)) t.isAvailable = false;
-  }
-  return [...byId.values()];
+  // Toppings not in CoCo's current menu are dropped
+  return result;
 }
 
 async function runSync() {
