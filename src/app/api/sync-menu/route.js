@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { parseSnappyMenu } from "@/lib/parseMenu";
 
 const MENU_CODE = "65cb919c-5c62-44e7-96db-faf8a577ac24";
+const STORE_ID = "3017";
 const SNAPPY_URL = `https://gosnappy.io/v1/owa/menu/${MENU_CODE}`;
 
 function admin() {
@@ -55,12 +56,15 @@ function mergeToppings(stored, fresh) {
 }
 
 async function runSync() {
-  // Fetch Snappy menu. Keep headers minimal — extra Origin/Referer can trigger 400s.
+  // Fetch Snappy menu. The API requires the store ID passed as a header.
   const res = await fetch(SNAPPY_URL, {
     headers: {
       "Accept": "application/json, text/plain, */*",
       "Accept-Language": "en-US,en;q=0.9",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "x-store-id": STORE_ID,
+      "storeId": STORE_ID,
+      "store-id": STORE_ID,
     },
     cache: "no-store",
   });
