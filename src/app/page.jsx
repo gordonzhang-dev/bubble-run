@@ -19,35 +19,45 @@ const SUGAR = ["0%", "30%", "50%", "70%", "100%"];
 const ICE = ["No ice", "Less ice", "Regular ice"];
 
 const DEFAULT_MENU = [
+  // ── JULY SPECIAL ──
+  { id:"getfree",name:"GET A FREE Pearl Milk Tea (promo)",basePrice:0,category:"July Special",color:"#e8a13c",isAvailable:true },
+  { id:"chunkymangogreen",name:"Chunky Mango Green Tea w/ Tea Jelly 32oz",basePrice:7.95,category:"July Special",color:"#f2c04b",isAvailable:false },
+  { id:"chunkymangopeach",name:"Chunky Mango & Peach Slush 32oz",basePrice:7.95,category:"July Special",color:"#f0a83c",isAvailable:false },
+  // ── SWIRL INTO YOUR TREAT ──
+  { id:"lemonpieswirl",name:"Lemon Pie Cream Swirl Smoothie",basePrice:6.30,category:"Swirl",color:"#f0d96a",isAvailable:true },
+  { id:"matchacookieswirl",name:"Matcha Cookies Cream Swirl Smoothie",basePrice:6.30,category:"Swirl",color:"#9cbf7a",isAvailable:true },
   // ── MILK TEA ──
+  { id:"matchaberrylatte",name:"Matcha Berry Latte",basePrice:6.90,category:"Milk Tea",color:"#a3c48a",isAvailable:true },
   { id:"pmt",name:"Pearl Milk Tea",basePrice:6.50,category:"Milk Tea",color:"#caa06a",isAvailable:true },
+  { id:"gaga",name:"Bubble GaGa (passion fruit, pearls, coconut jelly)",basePrice:6.80,category:"Milk Tea",color:"#e3b23c",isAvailable:true },
   { id:"3guys",name:"3 Guys (pearl, pudding, grass jelly)",basePrice:6.90,category:"Milk Tea",color:"#b5894e",isAvailable:true },
+  { id:"bsjmt",name:"Brown Sugar Pearl Jasmine Milk Tea",basePrice:7.10,category:"Milk Tea",color:"#a9763f",isAvailable:true },
+  { id:"sagotaro",name:"Sago Taro Milk Tea",basePrice:6.70,category:"Milk Tea",color:"#c9a0d0",isAvailable:true },
+  { id:"peach",name:"Peach Milk Tea",basePrice:6.50,category:"Milk Tea",color:"#f0a87a",isAvailable:true },
   { id:"classic",name:"Milk Tea",basePrice:5.90,category:"Milk Tea",color:"#c09a6b",isAvailable:true },
   { id:"jasmine",name:"Jasmine Milk Tea",basePrice:5.90,category:"Milk Tea",color:"#d8c79a",isAvailable:true },
   { id:"oolong",name:"Oolong Milk Tea",basePrice:5.90,category:"Milk Tea",color:"#9c7a4e",isAvailable:true },
   { id:"taro",name:"Taro Milk Tea",basePrice:6.10,category:"Milk Tea",color:"#c9a9d6",isAvailable:true },
-  { id:"matcha",name:"Matcha Milk Tea",basePrice:6.10,category:"Milk Tea",color:"#a7c49a",isAvailable:true },
+  { id:"matcha",name:"Matcha Milk Tea",basePrice:6.10,category:"Milk Tea",color:"#a7c49a",isAvailable:false },
   { id:"choco",name:"Chocolate Milk Tea",basePrice:6.10,category:"Milk Tea",color:"#6b4a35",isAvailable:false },
-  { id:"peach",name:"Peach Milk Tea",basePrice:6.50,category:"Milk Tea",color:"#f0a87a",isAvailable:true },
   { id:"2ladies",name:"2 Ladies (pearl, pudding)",basePrice:6.60,category:"Milk Tea",color:"#c4976a",isAvailable:true },
-  { id:"honeydewjasmine",name:"Honeydew Jasmine Milk Tea w/ Tea Jelly",basePrice:6.40,category:"Milk Tea",color:"#b8d89a",isAvailable:true },
-  { id:"oolongpearl",name:"Oolong Milk Tea With Pearls",basePrice:6.50,category:"Milk Tea",color:"#9c7a4e",isAvailable:true },
-  { id:"jasminetaro",name:"Jasmine Milk Tea With Fresh Taro",basePrice:6.50,category:"Milk Tea",color:"#c5a3d0",isAvailable:false },
+  { id:"honeydewjasmine",name:"Honeydew Jasmine Milk Tea w/ Tea Jelly",basePrice:6.90,category:"Milk Tea",color:"#b8d89a",isAvailable:true },
+  { id:"oolongpearl",name:"Oolong Milk Tea With Pearls",basePrice:6.50,category:"Milk Tea",color:"#9c7a4e",isAvailable:false },
+  { id:"jasminetaro",name:"Jasmine Milk Tea With Fresh Taro",basePrice:7.10,category:"Milk Tea",color:"#c5a3d0",isAvailable:false },
   { id:"mangomilk",name:"Chunky Mango Milk Tea",basePrice:6.50,category:"Milk Tea",color:"#f2a93b",isAvailable:true },
   { id:"bspmt",name:"Brown Sugar Pearl Milk Tea",basePrice:7.10,category:"Milk Tea",color:"#8b5e3c",isAvailable:true },
-  { id:"bsjmt",name:"Brown Sugar Pearl Jasmine Milk Tea",basePrice:7.10,category:"Milk Tea",color:"#a9763f",isAvailable:true },
-  { id:"sagotaro",name:"Sago Taro Milk Tea",basePrice:6.10,category:"Milk Tea",color:"#c9a0d0",isAvailable:true },
-  { id:"lycheejasmine",name:"Lychee Jasmine Milk Tea w/ Jelly",basePrice:6.40,category:"Milk Tea",color:"#f0b8c0",isAvailable:false },
-  { id:"gaga",name:"Bubble GaGa (passion fruit, coconut jelly)",basePrice:6.80,category:"Milk Tea",color:"#e3b23c",isAvailable:true },
+  { id:"lycheejasmine",name:"Lychee Jasmine Milk Tea w/ Jelly",basePrice:6.90,category:"Milk Tea",color:"#f0b8c0",isAvailable:false },
   // ── FRUIT TEA ──
   { id:"peachberry",name:"Peach & Berry Iced Tea",basePrice:6.70,category:"Fruit Tea",color:"#e8967a",isAvailable:true },
   { id:"mango",name:"Mango Green Tea",basePrice:5.80,category:"Fruit Tea",color:"#f2a93b",isAvailable:true },
   { id:"passionblack",name:"Passion Fruit Black Tea",basePrice:5.80,category:"Fruit Tea",color:"#e8b33a",isAvailable:true },
   { id:"passion",name:"Passion Fruit Green Tea",basePrice:5.80,category:"Fruit Tea",color:"#e8b33a",isAvailable:true },
-  { id:"poppingmars",name:"Popping Mars (mango, strawberry popping pearls)",basePrice:6.80,category:"Fruit Tea",color:"#e85a5a",isAvailable:true },
+  { id:"poppingmars",name:"Popping Mars (mango, strawberry popping pearls)",basePrice:6.80,category:"Fruit Tea",color:"#e85a5a",isAvailable:false },
   { id:"lemonblack",name:"Lemon Black Tea",basePrice:5.80,category:"Fruit Tea",color:"#c9b36a",isAvailable:true },
   { id:"lemongreen",name:"Lemon Green Tea",basePrice:5.80,category:"Fruit Tea",color:"#d7e06a",isAvailable:true },
   { id:"berryblack",name:"Berry Black Tea",basePrice:6.30,category:"Fruit Tea",color:"#b85a7a",isAvailable:true },
+  { id:"lycheeiced",name:"Lychee Iced Tea (green tea, real lychee, jelly)",basePrice:6.70,category:"Fruit Tea",color:"#e8d8e8",isAvailable:false },
+  { id:"grapefruitgreen",name:"Grapefruit Green Tea",basePrice:6.60,category:"Fruit Tea",color:"#ef8c8c",isAvailable:true },
   // ── FRESH TEA ──
   { id:"blacktea",name:"Black Tea",basePrice:5.30,category:"Fresh Tea",color:"#a07040",isAvailable:true },
   { id:"greentea",name:"Green Tea",basePrice:5.30,category:"Fresh Tea",color:"#8ab060",isAvailable:true },
@@ -55,29 +65,31 @@ const DEFAULT_MENU = [
   // ── SLUSH / SMOOTHIE ──
   { id:"pmslush",name:"Passionfruit & Mango Slush",basePrice:6.42,category:"Slush / Smoothie",color:"#f0992f",isAvailable:true },
   { id:"taroslush",name:"Taro Smoothie",basePrice:6.42,category:"Slush / Smoothie",color:"#c9a9d6",isAvailable:true },
-  { id:"berrysmoothie",name:"Berry Smoothie",basePrice:6.94,category:"Slush / Smoothie",color:"#b85a7a",isAvailable:true },
+  { id:"chocosmoothie",name:"Chocolate Smoothie",basePrice:6.42,category:"Slush / Smoothie",color:"#6b4a35",isAvailable:false },
   { id:"honeydewsmoothie",name:"Honeydew Smoothie w/ Crystal Pearls",basePrice:6.70,category:"Slush / Smoothie",color:"#b8d89a",isAvailable:true },
-  { id:"pmtsmoothie",name:"Pearl Milk Tea Smoothie",basePrice:7.00,category:"Slush / Smoothie",color:"#caa06a",isAvailable:true },
+  { id:"berrysmoothie",name:"Berry Smoothie",basePrice:6.94,category:"Slush / Smoothie",color:"#b85a7a",isAvailable:true },
+  { id:"mangopomelosago",name:"Mango Pomelo Sago Smoothie",basePrice:7.30,category:"Slush / Smoothie",color:"#f3b43a",isAvailable:true },
+  { id:"chunkymangosmoothie",name:"Chunky Mango Smoothie",basePrice:7.00,category:"Slush / Smoothie",color:"#f2a93b",isAvailable:true },
+  { id:"bananachoco",name:"Banana Chocolate Smoothie",basePrice:7.50,category:"Slush / Smoothie",color:"#8b7040",isAvailable:false },
+  { id:"bananapudding",name:"Banana Pudding Smoothie",basePrice:7.50,category:"Slush / Smoothie",color:"#d4b880",isAvailable:false },
+  { id:"pmtsmoothie",name:"Pearl Milk Tea Smoothie",basePrice:7.50,category:"Slush / Smoothie",color:"#caa06a",isAvailable:false },
   { id:"mangosmoothie",name:"Mango Smoothie",basePrice:6.60,category:"Slush / Smoothie",color:"#f3b43a",isAvailable:true },
-  { id:"bsmatchasmoothie",name:"Brown Sugar Pearl Matcha Smoothie w/ Macchiato",basePrice:7.40,category:"Slush / Smoothie",color:"#9fbe8e",isAvailable:true },
-  { id:"chocosmoothie",name:"Chocolate Smoothie",basePrice:5.60,category:"Slush / Smoothie",color:"#6b4a35",isAvailable:false },
-  { id:"bananachoco",name:"Banana Chocolate Smoothie",basePrice:7.00,category:"Slush / Smoothie",color:"#8b7040",isAvailable:false },
-  { id:"bananapudding",name:"Banana Pudding Smoothie",basePrice:7.00,category:"Slush / Smoothie",color:"#d4b880",isAvailable:false },
+  { id:"bsmatchasmoothie",name:"Brown Sugar Pearl Matcha Smoothie w/ Macchiato",basePrice:7.80,category:"Slush / Smoothie",color:"#9fbe8e",isAvailable:false },
   // ── PROBIOTIC ──
-  { id:"greenyogurt",name:"Green Tea Probiotic Yogurt",basePrice:6.20,category:"Probiotic",color:"#cfe0a0",isAvailable:true },
-  { id:"mangoyogurt",name:"Mango Probiotic Yogurt",basePrice:6.50,category:"Probiotic",color:"#f2b85a",isAvailable:true },
-  { id:"lemonyogurt",name:"Lemon Probiotic Yogurt",basePrice:6.50,category:"Probiotic",color:"#ebe49a",isAvailable:true },
-  { id:"grapefruityogurt",name:"Grapefruit Probiotic Yogurt",basePrice:6.50,category:"Probiotic",color:"#ef8c8c",isAvailable:true },
-  { id:"lycheeyogurt",name:"Lychee Probiotic Yogurt",basePrice:6.50,category:"Probiotic",color:"#f0b8c0",isAvailable:false },
+  { id:"greenyogurt",name:"Green Tea Probiotic Yogurt",basePrice:6.70,category:"Probiotic",color:"#cfe0a0",isAvailable:true },
+  { id:"mangoyogurt",name:"Mango Probiotic Yogurt",basePrice:7.00,category:"Probiotic",color:"#f2b85a",isAvailable:true },
+  { id:"lemonyogurt",name:"Lemon Probiotic Yogurt",basePrice:7.00,category:"Probiotic",color:"#ebe49a",isAvailable:true },
+  { id:"lycheeyogurt",name:"Lychee Probiotic Yogurt",basePrice:7.00,category:"Probiotic",color:"#f0b8c0",isAvailable:false },
+  { id:"grapefruityogurt",name:"Grapefruit Probiotic Yogurt",basePrice:7.00,category:"Probiotic",color:"#ef8c8c",isAvailable:true },
   // ── MACCHIATO ──
   { id:"greenmacchiato",name:"Green Tea Macchiato",basePrice:6.30,category:"Macchiato",color:"#dde3b0",isAvailable:true },
-  { id:"matchamacchiato",name:"Matcha Macchiato",basePrice:7.10,category:"Macchiato",color:"#9fbe8e",isAvailable:true },
-  { id:"berrymacchiato",name:"Berry Black Tea Macchiato",basePrice:7.30,category:"Macchiato",color:"#b85a7a",isAvailable:true },
   { id:"blackmacchiato",name:"Black Tea Macchiato",basePrice:6.30,category:"Macchiato",color:"#c7ae7e",isAvailable:false },
+  { id:"matchamacchiato",name:"Matcha Macchiato",basePrice:7.10,category:"Macchiato",color:"#9fbe8e",isAvailable:false },
+  { id:"berrymacchiato",name:"Berry Black Tea Macchiato",basePrice:7.30,category:"Macchiato",color:"#b85a7a",isAvailable:true },
   // ── MILK ──
   { id:"bslatte",name:"Brown Sugar Pearl Latte",basePrice:7.30,category:"Milk",color:"#c2a98e",isAvailable:true },
-  { id:"matchalatte",name:"Matcha Latte",basePrice:6.60,category:"Milk",color:"#a7c49a",isAvailable:true },
-  { id:"matchamango",name:"Matcha Mango Latte",basePrice:6.90,category:"Milk",color:"#b5c88a",isAvailable:true },
+  { id:"matchalatte",name:"Matcha Latte",basePrice:6.60,category:"Milk",color:"#a7c49a",isAvailable:false },
+  { id:"matchamango",name:"Matcha Mango Latte",basePrice:6.90,category:"Milk",color:"#b5c88a",isAvailable:false },
   { id:"berrylatte",name:"Berry Latte",basePrice:6.90,category:"Milk",color:"#b85a7a",isAvailable:true },
   { id:"freshtaro",name:"Fresh Taro With Milk",basePrice:6.90,category:"Milk",color:"#c9a9d6",isAvailable:false },
 ];
@@ -99,7 +111,7 @@ const DEFAULT_TOPPINGS = [
   { id:"redbean",name:"Red Bean",price:0.60,isAvailable:false },
 ];
 
-const CATEGORIES = ["Milk Tea","Fruit Tea","Fresh Tea","Slush / Smoothie","Probiotic","Macchiato","Milk"];
+const CATEGORIES = ["July Special","Swirl","Milk Tea","Fruit Tea","Fresh Tea","Slush / Smoothie","Probiotic","Macchiato","Milk"];
 
 /* ═══════════════════════════════════════════
    HELPERS
@@ -1128,7 +1140,7 @@ const QUIZ_QUESTIONS = [
   { q:"Anything else?", emoji:"🧋", options:[{label:"Show me deals first",tags:["deal"]},{label:"Toppings are a must",tags:["toppings"]},{label:"Just show me what you've got",tags:[]}] },
 ];
 const DRINK_TAGS = {
-  pmt:["creamy","sweet","caffeine","toppings"],"3guys":["creamy","sweet","caffeine","toppings"],classic:["creamy","balanced","caffeine"],jasmine:["creamy","balanced","light","caffeine"],oolong:["creamy","balanced","bold","caffeine"],taro:["creamy","sweet","nocaf"],matcha:["creamy","balanced","bold","caffeine"],choco:["creamy","sweet","bold","nocaf"],peach:["creamy","fruity","sweet","caffeine"],"2ladies":["creamy","sweet","caffeine","toppings"],honeydewjasmine:["creamy","fruity","light","caffeine"],oolongpearl:["creamy","bold","caffeine","toppings"],jasminetaro:["creamy","sweet","caffeine"],mangomilk:["creamy","fruity","sweet","caffeine"],bspmt:["creamy","sweet","bold","caffeine","toppings"],bsjmt:["creamy","sweet","caffeine","toppings"],sagotaro:["creamy","sweet","nocaf","toppings"],lycheejasmine:["creamy","fruity","light","caffeine"],gaga:["fruity","sweet","caffeine","toppings"],peachberry:["fruity","sweet","light","nocaf"],mango:["fruity","sweet","light","caffeine"],passionblack:["fruity","balanced","bold","caffeine"],passion:["fruity","balanced","caffeine"],poppingmars:["fruity","sweet","caffeine","toppings"],lemonblack:["fruity","light","bold","caffeine"],lemongreen:["fruity","light","caffeine"],berryblack:["fruity","bold","caffeine"],blacktea:["bold","light","caffeine"],greentea:["light","caffeine"],oolongtea:["bold","balanced","caffeine"],pmslush:["fruity","sweet","frozen","nocaf"],taroslush:["creamy","sweet","frozen","nocaf"],berrysmoothie:["fruity","sweet","frozen","nocaf"],honeydewsmoothie:["creamy","fruity","frozen","nocaf","toppings"],pmtsmoothie:["creamy","sweet","frozen","caffeine","toppings"],mangosmoothie:["fruity","sweet","frozen","nocaf"],bsmatchasmoothie:["creamy","bold","frozen","caffeine","toppings"],chocosmoothie:["creamy","sweet","frozen","nocaf"],bananachoco:["creamy","sweet","frozen","nocaf"],bananapudding:["creamy","sweet","frozen","nocaf"],greenyogurt:["fruity","light","nocaf"],mangoyogurt:["fruity","sweet","nocaf"],lemonyogurt:["fruity","light","nocaf"],grapefruityogurt:["fruity","light","nocaf"],lycheeyogurt:["fruity","sweet","nocaf"],greenmacchiato:["creamy","light","caffeine"],matchamacchiato:["creamy","bold","caffeine"],berrymacchiato:["creamy","fruity","bold","caffeine"],blackmacchiato:["creamy","bold","caffeine"],bslatte:["creamy","sweet","nocaf","toppings"],matchalatte:["creamy","balanced","nocaf"],matchamango:["creamy","fruity","nocaf"],berrylatte:["creamy","fruity","sweet","nocaf"],freshtaro:["creamy","sweet","nocaf"],
+  matchaberrylatte:["creamy","fruity","balanced","caffeine"],pmt:["creamy","sweet","caffeine","toppings"],gaga:["fruity","sweet","caffeine","toppings"],"3guys":["creamy","sweet","caffeine","toppings"],bsjmt:["creamy","sweet","caffeine","toppings"],sagotaro:["creamy","sweet","nocaf","toppings"],peach:["creamy","fruity","sweet","caffeine"],classic:["creamy","balanced","caffeine"],jasmine:["creamy","balanced","light","caffeine"],oolong:["creamy","balanced","bold","caffeine"],taro:["creamy","sweet","nocaf"],matcha:["creamy","balanced","bold","caffeine"],choco:["creamy","sweet","bold","nocaf"],"2ladies":["creamy","sweet","caffeine","toppings"],honeydewjasmine:["creamy","fruity","light","caffeine"],oolongpearl:["creamy","bold","caffeine","toppings"],jasminetaro:["creamy","sweet","caffeine"],mangomilk:["creamy","fruity","sweet","caffeine"],bspmt:["creamy","sweet","bold","caffeine","toppings"],lycheejasmine:["creamy","fruity","light","caffeine"],peachberry:["fruity","sweet","light","nocaf"],mango:["fruity","sweet","light","caffeine"],passionblack:["fruity","balanced","bold","caffeine"],passion:["fruity","balanced","caffeine"],poppingmars:["fruity","sweet","caffeine","toppings"],lemonblack:["fruity","light","bold","caffeine"],lemongreen:["fruity","light","caffeine"],berryblack:["fruity","bold","caffeine"],lycheeiced:["fruity","light","caffeine","toppings"],grapefruitgreen:["fruity","light","caffeine"],blacktea:["bold","light","caffeine"],greentea:["light","caffeine"],oolongtea:["bold","balanced","caffeine"],pmslush:["fruity","sweet","frozen","nocaf"],taroslush:["creamy","sweet","frozen","nocaf"],chocosmoothie:["creamy","sweet","frozen","nocaf"],honeydewsmoothie:["creamy","fruity","frozen","nocaf","toppings"],berrysmoothie:["fruity","sweet","frozen","nocaf"],mangopomelosago:["fruity","sweet","frozen","nocaf","toppings"],chunkymangosmoothie:["fruity","sweet","frozen","nocaf"],bananachoco:["creamy","sweet","frozen","nocaf"],bananapudding:["creamy","sweet","frozen","nocaf"],pmtsmoothie:["creamy","sweet","frozen","caffeine","toppings"],mangosmoothie:["fruity","sweet","frozen","nocaf"],bsmatchasmoothie:["creamy","bold","frozen","caffeine","toppings"],greenyogurt:["fruity","light","nocaf"],mangoyogurt:["fruity","sweet","nocaf"],lemonyogurt:["fruity","light","nocaf"],lycheeyogurt:["fruity","sweet","nocaf"],grapefruityogurt:["fruity","light","nocaf"],greenmacchiato:["creamy","light","caffeine"],blackmacchiato:["creamy","bold","caffeine"],matchamacchiato:["creamy","bold","caffeine"],berrymacchiato:["creamy","fruity","bold","caffeine"],bslatte:["creamy","sweet","nocaf","toppings"],matchalatte:["creamy","balanced","nocaf"],matchamango:["creamy","fruity","nocaf"],berrylatte:["creamy","fruity","sweet","nocaf"],freshtaro:["creamy","sweet","nocaf"],lemonpieswirl:["creamy","sweet","frozen","fruity"],matchacookieswirl:["creamy","sweet","frozen","bold"],
 };
 
 function DrinkQuiz({ menu, nameReady, onPick }) {
