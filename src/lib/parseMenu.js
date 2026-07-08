@@ -56,30 +56,24 @@ function slugify(name) {
 
 export function parseSnappyMenu(data) {
   const groups = data?.menuGroups || [];
-  const drinksByKey = new Map(); // base-name -> { name, category, prices:{M,L}, outOfStock:{M,L} }
+  const drinksByKey = new Map(); // base-name -> { name, category, prices:{M,L}, oos:{M,L} }
   let toppings = [];
   const seenToppings = new Set();
+
+  // Categories to skip entirely (merch, and the Recommended shelf which duplicates real drinks)
+  const SKIP_CATEGORIES = new Set(["misc", "recommended"]);
+  // Topping values that aren't real toppings
+  const SKIP_TOPPINGS = new Set(["no toppings", "no topping", "none"]);
 
   for (const g of groups) {
     if (g.hidden) continue;
     const items = g.menuItems || [];
     for (const item of items) {
       if (!item.name) continue;
-      const category = item.menuGroup || "Other";
-      const base = stripSize(item.name);
-      const size = sizeOf(item.name);
-      const key = base.toLowerCase();
-      const price = priceOf(item);
+      const category = item.menuGroup || g.name || "Other";
+      const catKey = category.toLowerCase();
 
-      if (!drinksByKey.has(key)) {
-        drinksByKey.set(key, { name: base, category, prices: {}, oos: {} });
-      }
-      const d = drinksByKey.get(key);
-      d.prices[size] = price;
-      d.oos[size] = !!item.outOfStock;
-      // Prefer non-size-prefixed category naming as-is
-
-      // Harvest toppings from the item's configurable attributes (once)
+      // Always harvest toppings even from skipped categories (they share the same topping list)
       const configs = item?.attributes?.Configurable || [];
       for (const cfg of configs) {
         const nm = (cfg.name || cfg.description || "").toUpperCase();
@@ -87,22 +81,37 @@ export function parseSnappyMenu(data) {
           for (const v of cfg.values || []) {
             const tName = (v.value || "").trim();
             if (!tName || seenToppings.has(tName.toLowerCase())) continue;
+            if (SKIP_TOPPINGS.has(tName.toLowerCase())) continue;
             seenToppings.add(tName.toLowerCase());
             let tPrice = 0.6;
             try { tPrice = v.charges?.[0]?.price ?? 0.6; } catch {}
-            toppings.push({
-              id: slugify(tName),
-              name: tName,
-              price: tPrice,
-              isAvailable: !v.outOfStock,
-            });
+            toppings.push({ id: slugify(tName), name: tName, price: tPrice, isAvailable: !v.outOfStock });
           }
         }
       }
+
+      // Skip merch and the Recommended shelf for the drink list
+      if (SKIP_CATEGORIES.has(catKey)) continue;
+
+      const base = stripSize(item.name);
+      const size = sizeOf(item.name);
+      const key = base.toLowerCase().replace(/[^a-z0-9]/g, ""); // normalize "3 Guys" vs "3Guys"
+      const price = priceOf(item);
+
+      // Skip junk: size-only names (Medium/Large/Small), empty base, or absurd prices (merch/combos)
+      if (!base || /^(medium|large|small)$/i.test(base)) continue;
+      if (price > 9) continue; // no CoCo drink is over $9; filters combos/merch
+
+      if (!drinksByKey.has(key)) {
+        drinksByKey.set(key, { name: base, category, prices: {}, oos: {} });
+      }
+      const d = drinksByKey.get(key);
+      d.prices[size] = price;
+      d.oos[size] = !!item.outOfStock;
     }
   }
 
-  // Build final menu: base price = Medium if present, else Large minus 0.50, else whatever exists
+  // Build final menu
   const menu = [];
   for (const d of drinksByKey.values()) {
     const mPrice = d.prices.M;
@@ -112,8 +121,6 @@ export function parseSnappyMenu(data) {
     else if (typeof lPrice === "number") basePrice = Math.max(0, +(lPrice - 0.5).toFixed(2));
     else basePrice = 0;
 
-    // If only Large exists and Medium doesn't, the drink is L-only; still store base as computed
-    const bothOOS = (d.prices.M !== undefined ? d.oos.M : true) && (d.prices.L !== undefined ? d.oos.L : true);
     const anyAvail = (d.prices.M !== undefined && !d.oos.M) || (d.prices.L !== undefined && !d.oos.L);
 
     menu.push({
@@ -126,13 +133,13 @@ export function parseSnappyMenu(data) {
     });
   }
 
-  // Derive category order from the menu groups (visible ones), in Snappy's order
+  // Derive category order (visible, non-skipped, in Snappy's order)
   const categoryOrder = [];
   for (const g of groups) {
     if (g.hidden) continue;
-    const items = g.menuItems || [];
-    for (const item of items) {
-      const cat = item.menuGroup || "Other";
+    for (const item of g.menuItems || []) {
+      const cat = item.menuGroup || g.name || "Other";
+      if (SKIP_CATEGORIES.has(cat.toLowerCase())) continue;
       if (!categoryOrder.includes(cat)) categoryOrder.push(cat);
     }
   }
