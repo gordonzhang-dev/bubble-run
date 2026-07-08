@@ -972,31 +972,19 @@ function SyncMenuButton({ menu, setMenu, toppings, setToppings }) {
         setSyncing(false);
         return;
       }
-      // 2) Pull the fresh master and merge into THIS round (price + availability, keep deals)
+      // 2) Pull the fresh master and mirror it into THIS round (drop drinks CoCo no longer sells, keep deals/colors)
       const { data: master } = await supabase.from("menu_master").select("menu, toppings").eq("id", "master").maybeSingle();
       if (master?.menu?.length) {
         setMenu((prev) => {
-          const freshById = new Map(master.menu.map((d) => [d.id, d]));
-          const prevIds = new Set(prev.map((d) => d.id));
-          const updated = prev.map((d) => {
-            const f = freshById.get(d.id);
-            return f ? { ...d, basePrice: f.basePrice, isAvailable: f.isAvailable, category: f.category } : d;
+          const prevById = new Map(prev.map((d) => [d.id, d]));
+          // Build the new menu straight from master; carry over deal + color from the round if present
+          return master.menu.map((f) => {
+            const old = prevById.get(f.id);
+            return old ? { ...f, color: old.color || f.color, ...(old.deal ? { deal: old.deal } : {}) } : f;
           });
-          // add drinks new to this round
-          for (const f of master.menu) if (!prevIds.has(f.id)) updated.push(f);
-          return updated;
         });
         if (master.toppings?.length) {
-          setToppings((prev) => {
-            const freshById = new Map(master.toppings.map((t) => [t.id, t]));
-            const prevIds = new Set(prev.map((t) => t.id));
-            const updated = prev.map((t) => {
-              const f = freshById.get(t.id);
-              return f ? { ...t, price: f.price, isAvailable: f.isAvailable } : t;
-            });
-            for (const f of master.toppings) if (!prevIds.has(f.id)) updated.push(f);
-            return updated;
-          });
+          setToppings(() => master.toppings.map((f) => ({ ...f })));
         }
         const added = result.added?.length ? ` · ${result.added.length} new` : "";
         setMsg(`Synced ${result.drinks} drinks${added} ✓`);
