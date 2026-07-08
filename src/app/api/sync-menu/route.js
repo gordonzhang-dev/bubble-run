@@ -79,7 +79,10 @@ async function runSync() {
   const { menu: freshMenu, toppings: freshToppings, categoryOrder } = parseSnappyMenu(data);
 
   if (!freshMenu.length) {
-    throw new Error("Parsed menu was empty — structure may have changed");
+    // Report what we actually received to help diagnose
+    const groupCount = data?.menuGroups?.length ?? 0;
+    const topKeys = Object.keys(data || {}).join(",");
+    throw new Error(`Parsed 0 drinks. groups=${groupCount} keys=${topKeys}`);
   }
 
   const db = admin();
@@ -93,13 +96,17 @@ async function runSync() {
   const mergedMenu = mergeMenu(storedMenu, freshMenu);
   const mergedToppings = mergeToppings(storedToppings, freshToppings);
 
-  await db.from("menu_master").upsert({
+  const { error: writeErr } = await db.from("menu_master").upsert({
     id: "master",
     menu: mergedMenu,
     toppings: mergedToppings,
     categories: categoryOrder,
     updated_at: new Date().toISOString(),
   });
+
+  if (writeErr) {
+    throw new Error(`DB write failed: ${writeErr.message} (did you run menu-master-setup.sql?)`);
+  }
 
   return {
     ok: true,
