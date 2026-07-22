@@ -67,9 +67,16 @@ export function parseSnappyMenu(data) {
   // Two passes over the groups in their ORIGINAL order (so the menu array matches
   // CoCo's sequence). Pass 1: real categories only. Pass 2: Recommended, adding only
   // drinks not already claimed by a real category.
+  // Promotional/curated categories that should keep their own items even when a
+  // similar drink exists in a regular category. Processed FIRST so they claim their
+  // items, and never overwritten afterward. Recommended is processed LAST (only keeps
+  // drinks not found anywhere else).
+  const PROMO = new Set(["july special", "swirl into your treat", "peak lychee peak flavor", "popping pearl"]);
+
   const passes = [
-    (g) => (g.name || "").toLowerCase() !== "recommended",  // real categories
-    (g) => (g.name || "").toLowerCase() === "recommended",  // recommended last
+    (g) => PROMO.has((g.name || "").toLowerCase()),                                             // promos first
+    (g) => !PROMO.has((g.name || "").toLowerCase()) && (g.name || "").toLowerCase() !== "recommended", // regular
+    (g) => (g.name || "").toLowerCase() === "recommended",                                      // recommended last
   ];
 
   for (const passFilter of passes) {
@@ -103,17 +110,21 @@ export function parseSnappyMenu(data) {
 
         const base = stripSize(item.name);
         const size = sizeOf(item.name);
-        const key = base.toLowerCase().replace(/[^a-z0-9]/g, "");
+        // Namespace promo items by category so they never collide with regular drinks
+        const isPromo = PROMO.has(catKey);
+        const isRecommended = catKey === "recommended";
+        const baseKey = base.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const key = isPromo ? `${catKey}::${baseKey}` : baseKey;
         const price = priceOf(item);
 
         if (!base || /^(medium|large|small)$/i.test(base)) continue;
         if (price > 9) continue;
 
-        const isRecommended = catKey === "recommended";
-
         if (!drinksByKey.has(key)) {
           drinksByKey.set(key, { name: base, category, prices: {}, oos: {} });
-        } else if (!isRecommended) {
+        } else if (!isRecommended && !isPromo) {
+          // Only a regular category may correct a previously-set regular label.
+          // Promo entries are namespaced so they never reach here.
           drinksByKey.get(key).category = category;
         }
         const d = drinksByKey.get(key);
@@ -124,6 +135,7 @@ export function parseSnappyMenu(data) {
   }
 
   // Build final menu
+  const PROMO_CATS = new Set(["July Special", "Swirl Into Your Treat", "Peak Lychee Peak Flavor", "Popping Pearl"]);
   const menu = [];
   for (const d of drinksByKey.values()) {
     const mPrice = d.prices.M;
@@ -135,8 +147,12 @@ export function parseSnappyMenu(data) {
 
     const anyAvail = (d.prices.M !== undefined && !d.oos.M) || (d.prices.L !== undefined && !d.oos.L);
 
+    // Promo items get a category-prefixed id so a promo drink and its regular-category
+    // twin (e.g. Berry Black Tea in both July Special and Fruit Tea) stay distinct.
+    const id = PROMO_CATS.has(d.category) ? `${slugify(d.category)}_${slugify(d.name)}` : slugify(d.name);
+
     menu.push({
-      id: slugify(d.name),
+      id,
       name: d.name,
       basePrice: +basePrice.toFixed(2),
       category: d.category,
