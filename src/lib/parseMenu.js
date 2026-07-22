@@ -60,54 +60,66 @@ export function parseSnappyMenu(data) {
   let toppings = [];
   const seenToppings = new Set();
 
-  // Categories to skip entirely (merch, and the Recommended shelf which duplicates real drinks)
-  const SKIP_CATEGORIES = new Set(["misc", "recommended"]);
-  // Topping values that aren't real toppings
+  // Merch category to skip entirely. Recommended is handled specially (processed last).
+  const SKIP_CATEGORIES = new Set(["misc"]);
   const SKIP_TOPPINGS = new Set(["no toppings", "no topping", "none"]);
 
-  for (const g of groups) {
-    if (g.hidden) continue;
-    const items = g.menuItems || [];
-    for (const item of items) {
-      if (!item.name) continue;
-      const category = item.menuGroup || g.name || "Other";
-      const catKey = category.toLowerCase();
+  // Two passes over the groups in their ORIGINAL order (so the menu array matches
+  // CoCo's sequence). Pass 1: real categories only. Pass 2: Recommended, adding only
+  // drinks not already claimed by a real category.
+  const passes = [
+    (g) => (g.name || "").toLowerCase() !== "recommended",  // real categories
+    (g) => (g.name || "").toLowerCase() === "recommended",  // recommended last
+  ];
 
-      // Always harvest toppings even from skipped categories (they share the same topping list)
-      const configs = item?.attributes?.Configurable || [];
-      for (const cfg of configs) {
-        const nm = (cfg.name || cfg.description || "").toUpperCase();
-        if (nm.includes("TOPPING")) {
-          for (const v of cfg.values || []) {
-            const tName = (v.value || "").trim();
-            if (!tName || seenToppings.has(tName.toLowerCase())) continue;
-            if (SKIP_TOPPINGS.has(tName.toLowerCase())) continue;
-            seenToppings.add(tName.toLowerCase());
-            let tPrice = 0.6;
-            try { tPrice = v.charges?.[0]?.price ?? 0.6; } catch {}
-            toppings.push({ id: slugify(tName), name: tName, price: tPrice, isAvailable: !v.outOfStock });
+  for (const passFilter of passes) {
+    for (const g of groups) {
+      if (g.hidden) continue;
+      if (!passFilter(g)) continue;
+      const items = g.menuItems || [];
+      for (const item of items) {
+        if (!item.name) continue;
+        const category = item.menuGroup || g.name || "Other";
+        const catKey = category.toLowerCase();
+
+        // Always harvest toppings (shared list across all items)
+        const configs = item?.attributes?.Configurable || [];
+        for (const cfg of configs) {
+          const nm = (cfg.name || cfg.description || "").toUpperCase();
+          if (nm.includes("TOPPING")) {
+            for (const v of cfg.values || []) {
+              const tName = (v.value || "").trim();
+              if (!tName || seenToppings.has(tName.toLowerCase())) continue;
+              if (SKIP_TOPPINGS.has(tName.toLowerCase())) continue;
+              seenToppings.add(tName.toLowerCase());
+              let tPrice = 0.6;
+              try { tPrice = v.charges?.[0]?.price ?? 0.6; } catch {}
+              toppings.push({ id: slugify(tName), name: tName, price: tPrice, isAvailable: !v.outOfStock });
+            }
           }
         }
+
+        if (SKIP_CATEGORIES.has(catKey)) continue;
+
+        const base = stripSize(item.name);
+        const size = sizeOf(item.name);
+        const key = base.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const price = priceOf(item);
+
+        if (!base || /^(medium|large|small)$/i.test(base)) continue;
+        if (price > 9) continue;
+
+        const isRecommended = catKey === "recommended";
+
+        if (!drinksByKey.has(key)) {
+          drinksByKey.set(key, { name: base, category, prices: {}, oos: {} });
+        } else if (!isRecommended) {
+          drinksByKey.get(key).category = category;
+        }
+        const d = drinksByKey.get(key);
+        d.prices[size] = price;
+        d.oos[size] = !!item.outOfStock;
       }
-
-      // Skip merch and the Recommended shelf for the drink list
-      if (SKIP_CATEGORIES.has(catKey)) continue;
-
-      const base = stripSize(item.name);
-      const size = sizeOf(item.name);
-      const key = base.toLowerCase().replace(/[^a-z0-9]/g, ""); // normalize "3 Guys" vs "3Guys"
-      const price = priceOf(item);
-
-      // Skip junk: size-only names (Medium/Large/Small), empty base, or absurd prices (merch/combos)
-      if (!base || /^(medium|large|small)$/i.test(base)) continue;
-      if (price > 9) continue; // no CoCo drink is over $9; filters combos/merch
-
-      if (!drinksByKey.has(key)) {
-        drinksByKey.set(key, { name: base, category, prices: {}, oos: {} });
-      }
-      const d = drinksByKey.get(key);
-      d.prices[size] = price;
-      d.oos[size] = !!item.outOfStock;
     }
   }
 
@@ -133,16 +145,22 @@ export function parseSnappyMenu(data) {
     });
   }
 
-  // Derive category order (visible, non-skipped, in Snappy's order)
+  // Derive category order from CoCo's original group sequence (not processing order),
+  // skipping merch. Recommended goes last, and only if it ended up with exclusive drinks.
+  const usedCategories = new Set(menu.map((d) => d.category));
   const categoryOrder = [];
   for (const g of groups) {
     if (g.hidden) continue;
-    for (const item of g.menuItems || []) {
-      const cat = item.menuGroup || g.name || "Other";
-      if (SKIP_CATEGORIES.has(cat.toLowerCase())) continue;
-      if (!categoryOrder.includes(cat)) categoryOrder.push(cat);
-    }
+    const cat = g.name || "Other";
+    if (cat.toLowerCase() === "misc") continue;
+    if (cat.toLowerCase() === "recommended") continue; // handled after
+    if (usedCategories.has(cat) && !categoryOrder.includes(cat)) categoryOrder.push(cat);
   }
+  // Also include any item-level menuGroup categories not captured by group names
+  for (const d of menu) {
+    if (d.category !== "Recommended" && !categoryOrder.includes(d.category)) categoryOrder.push(d.category);
+  }
+  if (usedCategories.has("Recommended")) categoryOrder.push("Recommended");
 
   return { menu, toppings, categoryOrder };
 }
