@@ -117,9 +117,9 @@ const CATEGORIES = ["July Special","Swirl","Milk Tea","Fruit Tea","Fresh Tea","S
 // CoCo's canonical category display order. Categories not listed here fall in
 // after the known ones (alphabetically), and "Recommended" always shows last.
 const CATEGORY_ORDER = [
-  "July Special", "Swirl Into Your Treat", "Swirl", "Milk Tea", "Fruit Tea",
+  "July Special", "Swirl Into Your Treat", "Swirl", "Recommended", "Milk Tea", "Fruit Tea",
   "Peak Lychee Peak Flavor", "Fresh tea", "Fresh Tea", "Slush", "Slush / Smoothie",
-  "Probiotic", "Macchiato", "Milk", "Popping Pearl", "Recommended",
+  "Probiotic", "Macchiato", "Milk", "Popping Pearl",
 ];
 
 // Ordered list of categories actually present in a menu, sorted to match CoCo.
@@ -131,9 +131,8 @@ function categoriesFromMenu(menu) {
   if (!present.length) return CATEGORIES;
 
   const rank = (c) => {
-    if (c === "Recommended") return 9999; // always last
     const i = CATEGORY_ORDER.indexOf(c);
-    return i === -1 ? 5000 : i; // unknown categories go after known, before Recommended
+    return i === -1 ? 5000 : i; // unknown categories go after known ones
   };
   return present.sort((a, b) => {
     const ra = rank(a), rb = rank(b);
