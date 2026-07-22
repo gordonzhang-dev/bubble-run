@@ -111,7 +111,19 @@ const DEFAULT_TOPPINGS = [
   { id:"redbean",name:"Red Bean",price:0.60,isAvailable:false },
 ];
 
+// Fallback order used only for the built-in default menu. Live menus derive
+// their categories from the drinks themselves (see categoriesFromMenu).
 const CATEGORIES = ["July Special","Swirl","Milk Tea","Fruit Tea","Fresh Tea","Slush / Smoothie","Probiotic","Macchiato","Milk"];
+
+// Derive the ordered list of categories actually present in a menu.
+// Preserves first-seen order so it matches CoCo's own menu ordering.
+function categoriesFromMenu(menu) {
+  const seen = [];
+  for (const d of menu || []) {
+    if (d.category && !seen.includes(d.category)) seen.push(d.category);
+  }
+  return seen.length ? seen : CATEGORIES;
+}
 
 /* ═══════════════════════════════════════════
    HELPERS
@@ -527,6 +539,7 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
   const [hideSoldOut, setHideSoldOut] = useState(false);
   const [maxPrice, setMaxPrice] = useState(8);
   const [priceFilter, setPriceFilter] = useState(false);
+  const cats = useMemo(() => categoriesFromMenu(menu), [menu]);
 
   const filteredMenu = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -635,7 +648,7 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
           {search && <button onClick={() => setSearch("")} aria-label="Clear" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"><X className="w-4 h-4" /></button>}
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2 -mx-1 px-1">
-          {["All", ...CATEGORIES].map((cat) => (
+          {["All", ...cats].map((cat) => (
             <button key={cat} onClick={() => setFilterCat(cat)} className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 ${filterCat === cat ? "bg-stone-800 text-white ring-stone-800" : "bg-white text-stone-600 ring-stone-200 hover:ring-stone-400"}`}>{cat}</button>
           ))}
         </div>
@@ -646,7 +659,7 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
           {priceFilter && <label className="inline-flex items-center gap-1.5 text-xs text-stone-600">Under <span className="font-mono font-semibold">{money(maxPrice)}</span><input type="range" min="5" max="8" step="0.25" value={maxPrice} onChange={(e) => setMaxPrice(parseFloat(e.target.value))} className="w-24 accent-amber-700" /></label>}
           {(search || filterCat !== "All" || dealsOnly || hideSoldOut || priceFilter) && <button onClick={() => { setSearch(""); setFilterCat("All"); setDealsOnly(false); setHideSoldOut(false); setPriceFilter(false); setMaxPrice(8); }} className="text-xs text-amber-800 underline">Reset</button>}
         </div>
-        {(filterCat === "All" ? CATEGORIES : [filterCat]).map((cat) => {
+        {(filterCat === "All" ? cats : [filterCat]).map((cat) => {
           const items = filteredMenu.filter((m) => m.category === cat);
           if (!items.length) return null;
           return (
@@ -1285,6 +1298,7 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
   const idx = ROUND_FLOW.indexOf(round.status);
   const nextStatus = ROUND_FLOW[idx + 1];
   const summary = useMemo(() => buildSummary(orders, menu, toppings, round, total), [orders, menu, toppings, round, total]);
+  const hostCats = useMemo(() => categoriesFromMenu(menu), [menu]);
 
   return (
     <div className="space-y-5">
@@ -1353,7 +1367,7 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
         </div>
         <p className="text-xs text-stone-500 mb-3">Edit any base price, or flip a drink off to show it as sold out.</p>
         <div className="space-y-1">
-          {CATEGORIES.map((cat) => { const items = menu.filter((m) => m.category === cat); if (!items.length) return null; return (
+          {hostCats.map((cat) => { const items = menu.filter((m) => m.category === cat); if (!items.length) return null; return (
             <div key={cat}><div className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/70 pt-2">{cat}</div>
             {items.map((m) => <PriceStockRow key={m.id} item={m}
               onPrice={(val) => setMenu((prev) => prev.map((p) => (p.id === m.id ? { ...p, basePrice: val } : p)))}
