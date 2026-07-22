@@ -111,18 +111,35 @@ const DEFAULT_TOPPINGS = [
   { id:"redbean",name:"Red Bean",price:0.60,isAvailable:false },
 ];
 
-// Fallback order used only for the built-in default menu. Live menus derive
-// their categories from the drinks themselves (see categoriesFromMenu).
+// Fallback order used only for the built-in default menu.
 const CATEGORIES = ["July Special","Swirl","Milk Tea","Fruit Tea","Fresh Tea","Slush / Smoothie","Probiotic","Macchiato","Milk"];
 
-// Derive the ordered list of categories actually present in a menu.
-// Preserves first-seen order so it matches CoCo's own menu ordering.
+// CoCo's canonical category display order. Categories not listed here fall in
+// after the known ones (alphabetically), and "Recommended" always shows last.
+const CATEGORY_ORDER = [
+  "July Special", "Swirl Into Your Treat", "Swirl", "Milk Tea", "Fruit Tea",
+  "Peak Lychee Peak Flavor", "Fresh tea", "Fresh Tea", "Slush", "Slush / Smoothie",
+  "Probiotic", "Macchiato", "Milk", "Popping Pearl", "Recommended",
+];
+
+// Ordered list of categories actually present in a menu, sorted to match CoCo.
 function categoriesFromMenu(menu) {
-  const seen = [];
+  const present = [];
   for (const d of menu || []) {
-    if (d.category && !seen.includes(d.category)) seen.push(d.category);
+    if (d.category && !present.includes(d.category)) present.push(d.category);
   }
-  return seen.length ? seen : CATEGORIES;
+  if (!present.length) return CATEGORIES;
+
+  const rank = (c) => {
+    if (c === "Recommended") return 9999; // always last
+    const i = CATEGORY_ORDER.indexOf(c);
+    return i === -1 ? 5000 : i; // unknown categories go after known, before Recommended
+  };
+  return present.sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    return a.localeCompare(b);
+  });
 }
 
 /* ═══════════════════════════════════════════
