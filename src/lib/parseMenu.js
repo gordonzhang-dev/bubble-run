@@ -60,36 +60,55 @@ export function parseSnappyMenu(data) {
   let toppings = [];
   const seenToppings = new Set();
 
-  // Merch category to skip entirely. Recommended is handled specially (processed last).
+  // Only merch is skipped. Every other category CoCo publishes is kept automatically,
+  // including ones that don't exist yet (e.g. a new "August Summer Special").
   const SKIP_CATEGORIES = new Set(["misc"]);
   const SKIP_TOPPINGS = new Set(["no toppings", "no topping", "none"]);
 
-  // Two passes over the groups in their ORIGINAL order (so the menu array matches
-  // CoCo's sequence). Pass 1: real categories only. Pass 2: Recommended, adding only
-  // drinks not already claimed by a real category.
-  // Promotional/curated categories that should keep their own items even when a
-  // similar drink exists in a regular category. Processed FIRST so they claim their
-  // items, and never overwritten afterward. Recommended is processed LAST (only keeps
-  // drinks not found anywhere else).
-  const PROMO = new Set(["july special", "swirl into your treat", "peak lychee peak flavor", "popping pearl"]);
+  // "Recommended" is CoCo's curated shelf: it re-lists drinks that also live in real
+  // categories. It's the ONLY category we dedupe against, and it's processed last so
+  // it keeps just the drinks found nowhere else. Every other category — promotional or
+  // regular, known or brand new — keeps its own items.
+  const isRecommendedGroup = (g) => (g.name || "").toLowerCase() === "recommended";
+
+  // Record each category's position in CoCo's own menu so display order needs no
+  // hardcoded list. Recommended is forced to the end of the sequence.
+  const catIndexByName = new Map();
+  let seq = 0;
+  for (const g of groups) {
+    if (g.hidden) continue;
+    const cat = g.name || "Other";
+    if (cat.toLowerCase() === "misc") continue;
+    if (isRecommendedGroup(g)) continue;
+    if (!catIndexByName.has(cat)) catIndexByName.set(cat, seq++);
+  }
+  for (const g of groups) {
+    if (g.hidden || !isRecommendedGroup(g)) continue;
+    const cat = g.name || "Recommended";
+    if (!catIndexByName.has(cat)) catIndexByName.set(cat, 9999);
+  }
+
+  // Track which base names have been claimed by a non-Recommended category, so
+  // Recommended can skip them and so repeat names get distinct keys.
+  const claimedBaseNames = new Set();
 
   const passes = [
-    (g) => PROMO.has((g.name || "").toLowerCase()),                                             // promos first
-    (g) => !PROMO.has((g.name || "").toLowerCase()) && (g.name || "").toLowerCase() !== "recommended", // regular
-    (g) => (g.name || "").toLowerCase() === "recommended",                                      // recommended last
+    (g) => !isRecommendedGroup(g), // every real/promo category, in CoCo's order
+    (g) => isRecommendedGroup(g),  // Recommended last
   ];
 
   for (const passFilter of passes) {
     for (const g of groups) {
       if (g.hidden) continue;
       if (!passFilter(g)) continue;
-      const items = g.menuItems || [];
-      for (const item of items) {
+      const groupIsRecommended = isRecommendedGroup(g);
+
+      for (const item of g.menuItems || []) {
         if (!item.name) continue;
         const category = item.menuGroup || g.name || "Other";
         const catKey = category.toLowerCase();
 
-        // Always harvest toppings (shared list across all items)
+        // Harvest toppings from every item (shared list across the menu)
         const configs = item?.attributes?.Configurable || [];
         for (const cfg of configs) {
           const nm = (cfg.name || cfg.description || "").toUpperCase();
@@ -110,32 +129,47 @@ export function parseSnappyMenu(data) {
 
         const base = stripSize(item.name);
         const size = sizeOf(item.name);
-        // Namespace promo items by category so they never collide with regular drinks
-        const isPromo = PROMO.has(catKey);
-        const isRecommended = catKey === "recommended";
-        const baseKey = base.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const key = isPromo ? `${catKey}::${baseKey}` : baseKey;
         const price = priceOf(item);
 
         if (!base || /^(medium|large|small)$/i.test(base)) continue;
-        if (price > 9) continue;
+        if (price > 9) continue; // filters merch and oversized combo bundles
+
+        const baseKey = base.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        // Recommended: skip anything already claimed by a real category.
+        if (groupIsRecommended && claimedBaseNames.has(baseKey)) continue;
+
+        // Key includes the category so the same drink listed in two categories
+        // (e.g. a promo section and its regular home) stays distinct.
+        const key = `${catKey}::${baseKey}`;
 
         if (!drinksByKey.has(key)) {
-          drinksByKey.set(key, { name: base, category, prices: {}, oos: {} });
-        } else if (!isRecommended && !isPromo) {
-          // Only a regular category may correct a previously-set regular label.
-          // Promo entries are namespaced so they never reach here.
-          drinksByKey.get(key).category = category;
+          drinksByKey.set(key, {
+            name: base,
+            category,
+            catIndex: catIndexByName.has(category) ? catIndexByName.get(category) : 5000,
+            baseKey,
+            prices: {},
+            oos: {},
+          });
         }
         const d = drinksByKey.get(key);
         d.prices[size] = price;
         d.oos[size] = !!item.outOfStock;
+
+        if (!groupIsRecommended) claimedBaseNames.add(baseKey);
       }
     }
   }
 
-  // Build final menu
-  const PROMO_CATS = new Set(["July Special", "Swirl Into Your Treat", "Peak Lychee Peak Flavor", "Popping Pearl"]);
+  // Build the final menu. A drink keeps a plain id when its name is unique across the
+  // whole menu, and gets a category-prefixed id only when the same name appears in more
+  // than one category — that keeps ids stable for the common case.
+  const nameCounts = new Map();
+  for (const d of drinksByKey.values()) {
+    nameCounts.set(d.baseKey, (nameCounts.get(d.baseKey) || 0) + 1);
+  }
+
   const menu = [];
   for (const d of drinksByKey.values()) {
     const mPrice = d.prices.M;
@@ -146,37 +180,27 @@ export function parseSnappyMenu(data) {
     else basePrice = 0;
 
     const anyAvail = (d.prices.M !== undefined && !d.oos.M) || (d.prices.L !== undefined && !d.oos.L);
-
-    // Promo items get a category-prefixed id so a promo drink and its regular-category
-    // twin (e.g. Berry Black Tea in both July Special and Fruit Tea) stay distinct.
-    const id = PROMO_CATS.has(d.category) ? `${slugify(d.category)}_${slugify(d.name)}` : slugify(d.name);
+    const duplicated = (nameCounts.get(d.baseKey) || 0) > 1;
+    const id = duplicated ? `${slugify(d.category)}_${slugify(d.name)}` : slugify(d.name);
 
     menu.push({
       id,
       name: d.name,
       basePrice: +basePrice.toFixed(2),
       category: d.category,
+      catIndex: d.catIndex,   // lets the app order categories without a hardcoded list
       color: colorFor(d.name),
       isAvailable: anyAvail,
     });
   }
 
-  // Derive category order from CoCo's original group sequence (not processing order),
-  // skipping merch. Recommended goes last, and only if it ended up with exclusive drinks.
-  const usedCategories = new Set(menu.map((d) => d.category));
-  const categoryOrder = [];
-  for (const g of groups) {
-    if (g.hidden) continue;
-    const cat = g.name || "Other";
-    if (cat.toLowerCase() === "misc") continue;
-    if (cat.toLowerCase() === "recommended") continue; // handled after
-    if (usedCategories.has(cat) && !categoryOrder.includes(cat)) categoryOrder.push(cat);
-  }
-  // Also include any item-level menuGroup categories not captured by group names
-  for (const d of menu) {
-    if (d.category !== "Recommended" && !categoryOrder.includes(d.category)) categoryOrder.push(d.category);
-  }
-  if (usedCategories.has("Recommended")) categoryOrder.push("Recommended");
+  // Category order straight from CoCo's own sequence, limited to categories that
+  // actually ended up with drinks.
+  const used = new Set(menu.map((d) => d.category));
+  const categoryOrder = [...catIndexByName.entries()]
+    .filter(([cat]) => used.has(cat))
+    .sort((a, b) => a[1] - b[1])
+    .map(([cat]) => cat);
 
   return { menu, toppings, categoryOrder };
 }
