@@ -581,7 +581,16 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
   const [hideSoldOut, setHideSoldOut] = useState(false);
   const [maxPrice, setMaxPrice] = useState(8);
   const [priceFilter, setPriceFilter] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
   const cats = useMemo(() => categoriesFromMenu(menu), [menu]);
+
+  const personKey = name.trim().toLowerCase();
+  const myPay = payments[personKey] || { sent: false, received: false, tip: 0 };
+  const setTip = (val) => setPayments((prev) => {
+    const cur = prev[personKey] || { sent: false, received: false, tip: 0 };
+    if (cur.received) return prev;
+    return { ...prev, [personKey]: { ...cur, tip: val } };
+  });
 
   const filteredMenu = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -654,9 +663,9 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
         <PaymentCard
           payInfo={payInfo}
           amount={myOrders.reduce((s, o) => s + o.price, 0)}
-          pay={payments[name.trim().toLowerCase()] || { sent: false, received: false, tip: 0 }}
-          onToggleSent={() => setPayments((prev) => { const key = name.trim().toLowerCase(); const cur = prev[key] || { sent: false, received: false, tip: 0 }; if (cur.received) return prev; return { ...prev, [key]: { ...cur, sent: !cur.sent } }; })}
-          onTip={(val) => setPayments((prev) => { const key = name.trim().toLowerCase(); const cur = prev[key] || { sent: false, received: false, tip: 0 }; if (cur.received) return prev; return { ...prev, [key]: { ...cur, tip: val } }; })}
+          pay={myPay}
+          onToggleSent={() => setPayments((prev) => { const cur = prev[personKey] || { sent: false, received: false, tip: 0 }; if (cur.received) return prev; return { ...prev, [personKey]: { ...cur, sent: !cur.sent } }; })}
+          onTip={setTip}
         />
       )}
 
@@ -728,11 +737,23 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
           onAdd={(order) => {
             if (building.editId) {
               setOrders((prev) => prev.map((p) => (p.id === building.editId ? { ...p, ...order, status: "submitted" } : p)));
+              setBuilding(null);
             } else {
               setOrders((prev) => [...prev, { ...order, id: crypto.randomUUID(), person: name.trim(), status: "submitted", hostNote: "", unavailableItems: [] }]);
+              setBuilding(null);
+              // Prompt for a tip right after a drink is added so it isn't missed
+              if (!myPay.received) setShowTipModal(true);
             }
-            setBuilding(null);
           }}
+        />
+      )}
+
+      {showTipModal && (
+        <TipModal
+          amount={myOrders.reduce((s, o) => s + o.price, 0)}
+          tip={myPay.tip ?? 0}
+          onTip={setTip}
+          onClose={() => setShowTipModal(false)}
         />
       )}
     </div>
@@ -906,6 +927,34 @@ function MyOrderRow({ order, menu, toppings, onConfirm, onRemove, onEdit, onFix 
   );
 }
 
+function TipModal({ amount, tip, onTip, onClose }) {
+  return (
+    <div className="fixed inset-0 z-30 flex items-end sm:items-center justify-center bg-stone-900/50 p-3" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl bg-white shadow-xl ring-1 ring-stone-200 max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="px-5 pt-5 pb-3 flex items-start gap-3 border-b border-stone-100">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 shrink-0 text-lg">💚</span>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold tracking-tight leading-tight">Drink added!</h3>
+            <p className="text-xs text-stone-500">Want to tip the folks making it?</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="px-5 py-4">
+          <div className="flex items-center justify-between rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 mb-1">
+            <span className="text-xs text-amber-900/70">Your drinks so far</span>
+            <span className="font-mono text-sm font-semibold text-amber-900">{money(amount)}</span>
+          </div>
+          <TipPicker amount={amount} tip={tip} onTip={onTip} />
+          <button onClick={onClose} className="mt-3 w-full rounded-xl bg-amber-800 text-white font-medium py-3 hover:bg-amber-900">
+            {tip > 0 ? `Done · ${money(tip)} tip` : "Done"}
+          </button>
+          <p className="mt-2 text-center text-[11px] text-stone-400">You can change this any time under Payment.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TipPicker({ amount, tip, onTip }) {
   const [customOpen, setCustomOpen] = useState(false);
   const [customText, setCustomText] = useState("");
@@ -983,7 +1032,7 @@ function PaymentCard({ payInfo, amount, pay, onToggleSent, onTip }) {
   const grandTotal = withTax(amount) + tip;
   return (
     <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
-      <h2 className="text-sm font-semibold text-stone-700 inline-flex items-center gap-1.5 mb-2"><Wallet className="w-4 h-4 text-amber-700" /> Pay the runner</h2>
+      <h2 className="text-sm font-semibold text-stone-700 inline-flex items-center gap-1.5 mb-2"><Wallet className="w-4 h-4 text-amber-700" /> Payment</h2>
       <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 space-y-1">
         <div className="flex items-center justify-between text-xs text-amber-900/70"><span>Subtotal</span><span className="font-mono">{money(amount)}</span></div>
         <div className="flex items-center justify-between text-xs text-amber-900/70"><span>HST (13%)</span><span className="font-mono">{money(taxOf(amount))}</span></div>
@@ -1224,7 +1273,7 @@ function HelpModal({ isHost, onClose }) {
     { n: "3", t: "Customize it", d: "Choose your size, sugar level, ice, and any toppings. The price updates as you go." },
     { n: "4", t: "Confirm your order", d: "Your drinks start as “not confirmed” (amber). Tap the confirm button on each one so the host counts you in." },
     { n: "5", t: "Tip the staff (optional)", d: "You can add 8%, 10%, 12%, or a custom amount. Tips go straight to the CoCo staff making the drinks — the runner passes them along in full." },
-    { n: "6", t: "Pay the runner", d: "Send your e-transfer for your drinks plus any tip, then tick “I've sent it.” The host marks it received." },
+    { n: "6", t: "Payment", d: "Send your e-transfer for your drinks plus any tip, then tick “I've sent it.” The host marks it received." },
   ];
   const hostSteps = [
     { n: "1", t: "Share the link", d: "Tap Share at the top to copy the link, then send it to your friends. Save your host code to manage from another device." },
