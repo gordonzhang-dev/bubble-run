@@ -211,9 +211,9 @@ async function syncPayments(prev, next, roundId) {
   for (const key of Object.keys(next)) {
     const p = prev[key];
     const n = next[key];
-    if (!p || p.sent !== n.sent || p.received !== n.received) {
+    if (!p || p.sent !== n.sent || p.received !== n.received || (p.tip ?? 0) !== (n.tip ?? 0)) {
       await supabase.from("payments").upsert({
-        round_id: roundId, person_key: key, sent: n.sent, received: n.received,
+        round_id: roundId, person_key: key, sent: n.sent, received: n.received, tip: n.tip ?? 0,
       }, { onConflict: "round_id,person_key" });
     }
   }
@@ -349,7 +349,7 @@ function BubbleRunLive({ roundId, isHost, setIsHost, onLeave }) {
     setRoundData(rRes.data);
     _setOrders((oRes.data || []).map(rowToOrder));
     const pm = {};
-    (pRes.data || []).forEach(r => { pm[r.person_key] = { sent: r.sent, received: r.received }; });
+    (pRes.data || []).forEach(r => { pm[r.person_key] = { sent: r.sent, received: r.received, tip: parseFloat(r.tip) || 0 }; });
     _setPayments(pm);
     setLoading(false);
   }, [roundId]);
@@ -372,7 +372,7 @@ function BubbleRunLive({ roundId, isHost, setIsHost, onLeave }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "payments", filter: `round_id=eq.${roundId}` }, () => {
         supabase.from("payments").select("*").eq("round_id", roundId).then(({ data }) => {
           const pm = {};
-          (data || []).forEach(r => { pm[r.person_key] = { sent: r.sent, received: r.received }; });
+          (data || []).forEach(r => { pm[r.person_key] = { sent: r.sent, received: r.received, tip: parseFloat(r.tip) || 0 }; });
           _setPayments(pm);
         });
       })
@@ -625,7 +625,13 @@ function OrderView({ round, menu, toppings, orders, setOrders, payInfo, payments
       )}
 
       {myOrders.length > 0 && (
-        <PaymentCard payInfo={payInfo} amount={myOrders.reduce((s, o) => s + o.price, 0)} pay={payments[name.trim().toLowerCase()] || { sent: false, received: false }} onToggleSent={() => setPayments((prev) => { const key = name.trim().toLowerCase(); const cur = prev[key] || { sent: false, received: false }; if (cur.received) return prev; return { ...prev, [key]: { ...cur, sent: !cur.sent } }; })} />
+        <PaymentCard
+          payInfo={payInfo}
+          amount={myOrders.reduce((s, o) => s + o.price, 0)}
+          pay={payments[name.trim().toLowerCase()] || { sent: false, received: false, tip: 0 }}
+          onToggleSent={() => setPayments((prev) => { const key = name.trim().toLowerCase(); const cur = prev[key] || { sent: false, received: false, tip: 0 }; if (cur.received) return prev; return { ...prev, [key]: { ...cur, sent: !cur.sent } }; })}
+          onTip={(val) => setPayments((prev) => { const key = name.trim().toLowerCase(); const cur = prev[key] || { sent: false, received: false, tip: 0 }; if (cur.received) return prev; return { ...prev, [key]: { ...cur, tip: val } }; })}
+        />
       )}
 
       <GroupOrders orders={orders} menu={menu} toppings={toppings} myName={name} />
@@ -874,16 +880,95 @@ function MyOrderRow({ order, menu, toppings, onConfirm, onRemove, onEdit, onFix 
   );
 }
 
-function PaymentCard({ payInfo, amount, pay, onToggleSent }) {
+function TipPicker({ amount, tip, onTip }) {
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customText, setCustomText] = useState("");
+
+  const pctOptions = [8, 10, 12];
+  const pctAmount = (p) => +(amount * (p / 100)).toFixed(2);
+  // Which preset (if any) is currently selected
+  const activePct = pctOptions.find((p) => Math.abs(pctAmount(p) - tip) < 0.005);
+  const isNoTip = tip === 0 && !customOpen;
+  const isCustom = tip > 0 && activePct === undefined;
+
+  const commitCustom = () => {
+    const v = parseFloat(customText);
+    if (!isNaN(v) && v >= 0) onTip(+v.toFixed(2));
+    else onTip(0);
+  };
+
+  return (
+    <div className="mt-3 rounded-xl bg-stone-50 ring-1 ring-stone-200 p-3">
+      <p className="text-sm font-semibold text-stone-800">Add a tip?</p>
+      <p className="text-xs text-stone-500 mt-0.5 mb-2.5">
+        Tips go straight to the CoCo staff making your drink — the runner passes it along in full.
+      </p>
+      <div className="grid grid-cols-4 gap-1.5">
+        {pctOptions.map((p) => (
+          <button
+            key={p}
+            onClick={() => { setCustomOpen(false); onTip(pctAmount(p)); }}
+            className={`rounded-lg py-2 text-center ring-1 transition-colors ${activePct === p && !customOpen ? "bg-amber-800 text-white ring-amber-800" : "bg-white text-stone-700 ring-stone-200 hover:ring-amber-700"}`}
+          >
+            <span className="block text-sm font-semibold">{p}%</span>
+            <span className={`block text-[10px] font-mono ${activePct === p && !customOpen ? "text-amber-100" : "text-stone-400"}`}>{money(pctAmount(p))}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => { setCustomOpen(true); setCustomText(isCustom ? String(tip) : ""); }}
+          className={`rounded-lg py-2 text-center ring-1 transition-colors ${customOpen || isCustom ? "bg-amber-800 text-white ring-amber-800" : "bg-white text-stone-700 ring-stone-200 hover:ring-amber-700"}`}
+        >
+          <span className="block text-sm font-semibold">Custom</span>
+          <span className={`block text-[10px] ${customOpen || isCustom ? "text-amber-100" : "text-stone-400"}`}>your call</span>
+        </button>
+      </div>
+
+      {customOpen && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+            <input
+              type="number" step="0.25" min="0" inputMode="decimal" autoFocus
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              onBlur={commitCustom}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              placeholder="0.00"
+              className="w-full rounded-lg border border-stone-200 pl-6 pr-2 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-700"
+            />
+          </div>
+          <button onClick={commitCustom} className="rounded-lg bg-amber-800 text-white text-xs font-medium px-3 py-2 hover:bg-amber-900">Set</button>
+        </div>
+      )}
+
+      <button
+        onClick={() => { setCustomOpen(false); setCustomText(""); onTip(0); }}
+        className={`mt-2 w-full rounded-lg py-2 text-xs font-medium ring-1 transition-colors ${isNoTip ? "bg-stone-200 text-stone-700 ring-stone-300" : "bg-white text-stone-500 ring-stone-200 hover:ring-stone-400"}`}
+      >
+        {isNoTip ? "No tip — that's okay too ✓" : "No tip this time"}
+      </button>
+    </div>
+  );
+}
+
+function PaymentCard({ payInfo, amount, pay, onToggleSent, onTip }) {
   const hasInfo = payInfo.handle?.trim();
+  const tip = pay.tip ?? 0;
+  const grandTotal = withTax(amount) + tip;
   return (
     <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
       <h2 className="text-sm font-semibold text-stone-700 inline-flex items-center gap-1.5 mb-2"><Wallet className="w-4 h-4 text-amber-700" /> Pay the runner</h2>
       <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 space-y-1">
         <div className="flex items-center justify-between text-xs text-amber-900/70"><span>Subtotal</span><span className="font-mono">{money(amount)}</span></div>
         <div className="flex items-center justify-between text-xs text-amber-900/70"><span>HST (13%)</span><span className="font-mono">{money(taxOf(amount))}</span></div>
-        <div className="flex items-center justify-between pt-1 border-t border-amber-200"><span className="text-sm font-medium text-amber-900">You owe</span><span className="font-mono text-lg font-bold text-amber-900">{money(withTax(amount))}</span></div>
+        {tip > 0 && <div className="flex items-center justify-between text-xs text-amber-900/70"><span>Tip for the staff</span><span className="font-mono">{money(tip)}</span></div>}
+        <div className="flex items-center justify-between pt-1 border-t border-amber-200"><span className="text-sm font-medium text-amber-900">You owe</span><span className="font-mono text-lg font-bold text-amber-900">{money(grandTotal)}</span></div>
       </div>
+
+      {!pay.received && <TipPicker amount={amount} tip={tip} onTip={onTip} />}
+      {pay.received && tip > 0 && (
+        <p className="mt-2 text-xs text-emerald-700">Includes your {money(tip)} tip for the staff — thank you! 🧋</p>
+      )}
       {hasInfo ? (
         <div className="mt-3 space-y-1 text-sm">
           <p className="text-stone-500">Send your e-transfer to:</p>
@@ -1112,14 +1197,16 @@ function HelpModal({ isHost, onClose }) {
     { n: "2", t: "Pick a drink", d: "Browse the menu, search, or take the quick quiz if you're not sure. Tap any drink to open it." },
     { n: "3", t: "Customize it", d: "Choose your size, sugar level, ice, and any toppings. The price updates as you go." },
     { n: "4", t: "Confirm your order", d: "Your drinks start as “not confirmed” (amber). Tap the confirm button on each one so the host counts you in." },
-    { n: "5", t: "Pay the runner", d: "Send your e-transfer to the details shown, then tick “I've sent it.” The host marks it received." },
+    { n: "5", t: "Tip the staff (optional)", d: "You can add 8%, 10%, 12%, or a custom amount. Tips go straight to the CoCo staff making the drinks — the runner passes them along in full." },
+    { n: "6", t: "Pay the runner", d: "Send your e-transfer for your drinks plus any tip, then tick “I've sent it.” The host marks it received." },
   ];
   const hostSteps = [
     { n: "1", t: "Share the link", d: "Tap Share at the top to copy the link, then send it to your friends. Save your host code to manage from another device." },
     { n: "2", t: "Watch orders roll in", d: "Everyone's drinks appear live on your dashboard as they confirm them." },
     { n: "3", t: "Set what's in stock", d: "Toggle any drink or topping off if CoCo's out of it. You can also flag one person's drink if something specific runs out." },
     { n: "4", t: "Fix prices & add deals", d: "Edit any drink's price right in the dashboard, and add deals that show the lower price to everyone." },
-    { n: "5", t: "Lock & order", d: "When you're ready, lock the round, hit “Copy for CoCo,” and place the real order in the CoCo app. Then mark it ordered and ready." },
+    { n: "5", t: "Collect the tips", d: "The Getting paid panel shows each person's tip and a running Tip to leave at CoCo total — hand that amount to the staff when you pick up." },
+    { n: "6", t: "Lock & order", d: "When you're ready, lock the round, hit “Copy for CoCo,” and place the real order in the CoCo app. Then mark it ordered and ready." },
   ];
   const steps = isHost ? hostSteps : orderSteps;
   return (
@@ -1313,7 +1400,11 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
   const flagOrder = orders.find((o) => o.id === flagging) || null;
   const idx = ROUND_FLOW.indexOf(round.status);
   const nextStatus = ROUND_FLOW[idx + 1];
-  const summary = useMemo(() => buildSummary(orders, menu, toppings, round, total), [orders, menu, toppings, round, total]);
+  const tipTotal = useMemo(
+    () => getPeople(orders).reduce((s, p) => s + (payments[p.key]?.tip ?? 0), 0),
+    [orders, payments]
+  );
+  const summary = useMemo(() => buildSummary(orders, menu, toppings, round, total, tipTotal), [orders, menu, toppings, round, total, tipTotal]);
   const hostCats = useMemo(() => categoriesFromMenu(menu), [menu]);
 
   return (
@@ -1369,7 +1460,8 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
         <div className="px-4 py-3 bg-stone-50 border-t border-stone-100 space-y-1">
           <div className="flex items-center justify-between text-sm text-stone-500"><span>Subtotal · {orders.length} drinks</span><span className="font-mono">{money(total)}</span></div>
           <div className="flex items-center justify-between text-sm text-stone-500"><span>HST (13%)</span><span className="font-mono">{money(taxOf(total))}</span></div>
-          <div className="flex items-center justify-between pt-1 border-t border-stone-200"><span className="text-sm font-semibold text-stone-700">Total</span><span className="font-mono text-base font-semibold text-stone-900">{money(withTax(total))}</span></div>
+          {tipTotal > 0 && <div className="flex items-center justify-between text-sm text-emerald-700"><span>Tips for staff</span><span className="font-mono">{money(tipTotal)}</span></div>}
+          <div className="flex items-center justify-between pt-1 border-t border-stone-200"><span className="text-sm font-semibold text-stone-700">Total</span><span className="font-mono text-base font-semibold text-stone-900">{money(withTax(total) + tipTotal)}</span></div>
         </div>
       </div>
 
@@ -1437,9 +1529,13 @@ function HostView({ round, setRound, menu, setMenu, toppings, setToppings, order
 
 function PaymentHost({ payInfo, setPayInfo, orders, payments, setPayments }) {
   const people = getPeople(orders);
-  const collected = people.reduce((s, p) => s + (payments[p.key]?.received ? withTax(p.total) : 0), 0);
-  const grand = people.reduce((s, p) => s + withTax(p.total), 0);
-  const setReceived = (key, val) => setPayments((prev) => ({ ...prev, [key]: { sent: prev[key]?.sent ?? false, received: val } }));
+  const tipOf = (key) => payments[key]?.tip ?? 0;
+  const owedOf = (p) => withTax(p.total) + tipOf(p.key);
+  const collected = people.reduce((s, p) => s + (payments[p.key]?.received ? owedOf(p) : 0), 0);
+  const grand = people.reduce((s, p) => s + owedOf(p), 0);
+  const tipTotal = people.reduce((s, p) => s + tipOf(p.key), 0);
+  const tippers = people.filter((p) => tipOf(p.key) > 0).length;
+  const setReceived = (key, val) => setPayments((prev) => ({ ...prev, [key]: { sent: prev[key]?.sent ?? false, received: val, tip: prev[key]?.tip ?? 0 } }));
   return (
     <div className="rounded-2xl bg-white ring-1 ring-stone-200 p-4">
       <h2 className="text-sm font-semibold text-stone-700 inline-flex items-center gap-1.5 mb-1"><Wallet className="w-4 h-4 text-amber-700" /> Getting paid</h2>
@@ -1451,15 +1547,27 @@ function PaymentHost({ payInfo, setPayInfo, orders, payments, setPayments }) {
           <div><label className="block text-xs text-stone-500 mb-1">Note (optional)</label><SaveOnBlurInput value={payInfo.note} onSave={(v) => setPayInfo((p) => ({ ...p, note: v }))} className="w-full rounded-lg border border-stone-200 px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-700" /></div>
         </div>
       </div>
+      {tipTotal > 0 && (
+        <div className="mt-4 rounded-xl bg-emerald-50 ring-1 ring-emerald-200 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">Tip to leave at CoCo</p>
+              <p className="text-xs text-emerald-700 mt-0.5">From {tippers} {tippers === 1 ? "person" : "people"} — pass this to the staff</p>
+            </div>
+            <span className="font-mono text-2xl font-bold text-emerald-800">{money(tipTotal)}</span>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2"><h3 className="text-xs font-semibold uppercase tracking-wide text-amber-800/70">Who&apos;s paid</h3><span className="text-xs text-stone-500">Collected <span className="font-mono font-semibold text-stone-800">{money(collected)}</span> / {money(grand)}</span></div>
         {people.length === 0 ? <p className="text-xs text-stone-400">No orders yet.</p> : (
           <ul className="divide-y divide-stone-100">
-            {people.map((p) => { const pay = payments[p.key] || { sent: false, received: false }; return (
+            {people.map((p) => { const pay = payments[p.key] || { sent: false, received: false, tip: 0 }; const tip = pay.tip ?? 0; return (
               <li key={p.key} className="flex items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2"><span className="text-sm font-medium text-stone-800">{p.name}</span>{pay.sent && !pay.received && <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold px-2 py-0.5"><Send className="w-2.5 h-2.5" /> says sent</span>}</div>
-                  <span className="text-xs text-stone-500 font-mono">{money(withTax(p.total))} <span className="text-stone-400">incl. tax</span> · {p.count} {p.count === 1 ? "drink" : "drinks"}</span>
+                  <div className="flex items-center gap-2"><span className="text-sm font-medium text-stone-800">{p.name}</span>{pay.sent && !pay.received && <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-semibold px-2 py-0.5"><Send className="w-2.5 h-2.5" /> says sent</span>}{tip > 0 && <span className="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2 py-0.5">+{money(tip)} tip</span>}</div>
+                  <span className="text-xs text-stone-500 font-mono">{money(owedOf(p))} <span className="text-stone-400">incl. tax{tip > 0 ? " + tip" : ""}</span> · {p.count} {p.count === 1 ? "drink" : "drinks"}</span>
                 </div>
                 <button onClick={() => setReceived(p.key, !pay.received)} className={`inline-flex items-center gap-1.5 rounded-lg text-xs font-medium px-3 py-2 ${pay.received ? "bg-emerald-500 text-white hover:bg-emerald-600" : "ring-1 ring-stone-200 text-stone-600 hover:bg-stone-50"}`}>
                   {pay.received ? <><BadgeCheck className="w-4 h-4" /> Received</> : "Mark received"}
@@ -1521,7 +1629,7 @@ function SummaryModal({ text, onClose }) {
   );
 }
 
-function buildSummary(orders, menu, toppings, round, total) {
+function buildSummary(orders, menu, toppings, round, total, tipTotal = 0) {
   const lines = [`CoCo group order — ${round.pickup}`, `Cutoff: ${round.deadline}`, `${orders.length} drinks`, ""];
   orders.forEach((o, i) => {
     const drink = findDrink(menu, o.drinkId);
@@ -1531,6 +1639,12 @@ function buildSummary(orders, menu, toppings, round, total) {
     if (tNames.length) lines.push(`   + ${tNames.join(", ")}`);
     if (o.notes) lines.push(`   note: ${o.notes}`);
   });
-  lines.push("", `Subtotal: ${money(total)}`, `HST (13%): ${money(taxOf(total))}`, `Total: ${money(withTax(total))}`);
+  lines.push("", `Subtotal: ${money(total)}`, `HST (13%): ${money(taxOf(total))}`);
+  if (tipTotal > 0) {
+    lines.push(`Tip for staff: ${money(tipTotal)}`);
+    lines.push(`Total (with tip): ${money(withTax(total) + tipTotal)}`);
+  } else {
+    lines.push(`Total: ${money(withTax(total))}`);
+  }
   return lines.join("\n");
 }
