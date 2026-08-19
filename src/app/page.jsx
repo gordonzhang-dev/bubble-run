@@ -116,24 +116,50 @@ const CATEGORIES = ["July Special","Swirl","Milk Tea","Fruit Tea","Fresh Tea","S
 
 // CoCo's canonical category display order. Categories not listed here fall in
 // after the known ones (alphabetically), and "Recommended" always shows last.
+// Fallback order, used only for the built-in default menu (before the first CoCo sync).
 const CATEGORY_ORDER = [
   "July Special", "Swirl Into Your Treat", "Swirl", "Recommended", "Milk Tea", "Fruit Tea",
   "Peak Lychee Peak Flavor", "Fresh tea", "Fresh Tea", "Slush", "Slush / Smoothie",
   "Probiotic", "Macchiato", "Milk", "Popping Pearl",
 ];
 
-// Ordered list of categories actually present in a menu, sorted to match CoCo.
+// Ordered list of categories present in a menu.
+// Synced menus carry a catIndex on each drink (CoCo's own section order), so any new
+// category CoCo adds slots into the right place with no code change. Menus without
+// catIndex (the built-in default) fall back to the static list above.
 function categoriesFromMenu(menu) {
-  const present = [];
-  for (const d of menu || []) {
-    if (d.category && !present.includes(d.category)) present.push(d.category);
+  const items = menu || [];
+  if (!items.length) return CATEGORIES;
+
+  // Lowest catIndex seen for each category
+  const rankByCat = new Map();
+  let sawCatIndex = false;
+  for (const d of items) {
+    if (!d.category) continue;
+    if (typeof d.catIndex === "number") {
+      sawCatIndex = true;
+      const cur = rankByCat.get(d.category);
+      if (cur === undefined || d.catIndex < cur) rankByCat.set(d.category, d.catIndex);
+    } else if (!rankByCat.has(d.category)) {
+      rankByCat.set(d.category, undefined);
+    }
   }
+
+  const present = [...rankByCat.keys()];
   if (!present.length) return CATEGORIES;
 
-  const rank = (c) => {
+  const staticRank = (c) => {
     const i = CATEGORY_ORDER.indexOf(c);
-    return i === -1 ? 5000 : i; // unknown categories go after known ones
+    return i === -1 ? 5000 : i;
   };
+  const rank = (c) => {
+    if (sawCatIndex) {
+      const r = rankByCat.get(c);
+      return typeof r === "number" ? r : 5000; // categories lacking catIndex go after
+    }
+    return staticRank(c);
+  };
+
   return present.sort((a, b) => {
     const ra = rank(a), rb = rank(b);
     if (ra !== rb) return ra - rb;
